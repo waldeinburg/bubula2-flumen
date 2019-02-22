@@ -2,7 +2,9 @@
 
 DEBUG=1
 PORT=8080
-PIPE=server_pipe
+PIPE="server_pipe"
+MEM_DIR="mem"
+NC_ERR="${MEM_DIR}/nc_err"
 
 HTTP_STR="HTTP/1.0"
 HEADER_OK="$HTTP_STR 200 OK"
@@ -41,8 +43,6 @@ set_headers () {
     printf "\r\n"
 }
 
-# Echo without newlines
-
 nn () {
     tr '\n' ' '
 }
@@ -60,6 +60,8 @@ process_request () {
         return
     fi
     [[ "$DEBUG" ]] && echo "$request" >&2
+
+    ip=$(grep "^Connection" "$NC_ERR" | sed -r "s/^Connection from \[(([0-9]+\.){3}[0-9]+)].*/ip=\1/")
 
     http_method=$(get_request_element "$request" 1)
     http_path=$(get_request_element "$request" 2)
@@ -88,14 +90,15 @@ EOF
     esac
 }
 
+cd $(dirname "$0") || exit 1
 
-rm -f "$PIPE"
+rm -rf "$PIPE" "$MEM_DIR"
 umask 077
-trap "rm -f '$PIPE'" EXIT
+trap "rm -rf '$PIPE' '$MEM_DIR'" EXIT
 mkfifo "$PIPE"
+# TODO: create ramfs on MEM_DIR
 
 # Consider socat instead of nc to get rid of blocking.
 while :; do
-    cat "$PIPE" | process_request | nc -vl "$PORT" > "$PIPE"
+    cat "$PIPE" | process_request | nc -vlp "$PORT" 2> "$NC_ERR" > "$PIPE"
 done
-
