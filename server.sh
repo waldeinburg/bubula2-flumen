@@ -4,7 +4,9 @@ DEBUG=1
 PORT=8080
 PIPE="server_pipe"
 MEM_DIR="mem"
+IP_DIR="${MEM_DIR}/ip"
 NC_ERR="${MEM_DIR}/nc_err"
+WAIT_SECS=10
 
 HTTP_STR="HTTP/1.0"
 HEADER_OK="$HTTP_STR 200 OK"
@@ -62,6 +64,22 @@ process_request () {
     [[ "$DEBUG" ]] && echo "$request" >&2
 
     ip=$(grep "^Connection" "$NC_ERR" | sed -r "s/^Connection from \[(([0-9]+\.){3}[0-9]+)].*/ip=\1/")
+    ip_file="${IP_DIR}/${ip}"
+    new_ip=$([[ -f "$ip_file" ]] || echo 1)
+    must_wait=
+    if [[ ${new_ip} ]]; then
+        touch "$ip_file"
+    else
+        ip_time=$(stat -c %Y "$ip_file")
+        cur_time=$(date +%s)
+        elapsed=$(( ${cur_time} - ${ip_time} ))
+        if [[ ${elapsed} -lt ${WAIT_SECS} ]]; then
+            must_wait=1
+        else
+            # Waiting time is over. Update time.
+            touch "$ip_file"
+        fi
+    fi
 
     http_method=$(get_request_element "$request" 1)
     http_path=$(get_request_element "$request" 2)
@@ -84,7 +102,8 @@ EOF
         set_headers "$HEADER_OK" "$CT_HTML"
         html_body <<EOF
 <h1>Hello World</h1>
-Lorem ipsum
+Hello $([[ ${new_ip} ]] && echo there || echo again).
+$([[ ${must_wait} ]] && echo "Please wait!")
 EOF
         ;;
     esac
@@ -93,9 +112,14 @@ EOF
 cd $(dirname "$0") || exit 1
 
 rm -rf "$PIPE" "$MEM_DIR"
-umask 077
 trap "rm -rf '$PIPE' '$MEM_DIR'" EXIT
+
+mkdir "$MEM_DIR" "$IP_DIR" || exit 2
+touch "$NC_ERR"
+
+umask 077
 mkfifo "$PIPE"
+
 # TODO: create ramfs on MEM_DIR
 
 # Consider socat instead of nc to get rid of blocking.
