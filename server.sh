@@ -4,6 +4,7 @@ DEBUG=1
 PORT=8080
 PIPE="server_pipe"
 IMAGES_DIR="img"
+MEM_FS_SIZE=1k
 MEM_DIR="mem"
 IP_DIR="${MEM_DIR}/ip"
 NC_ERR="${MEM_DIR}/nc_err"
@@ -129,32 +130,43 @@ EOF
 
         IMG=$(echo "$IMAGES" | sed -n "${n}{p;q}")
         IMG_DATA=$(base64 -w0 "$IMG")
+
         set_headers "$HEADER_OK" "$CT_HTML"
         html_body <<EOF
 <p><img alt="image" src="data:image/png;base64,${IMG_DATA}"/>
 <p>${n} of ${IMAGES_COUNT}</p>
 EOF
+
         # Increment counter.
         echo -n $(( ${n} + 1 )) > "$COUNTER"
         ;;
     esac
 }
 
+
 cd $(dirname "$0") || exit 1
 
 rm -rf "$PIPE" "$MEM_DIR"
-trap "rm -rf '$PIPE' '$MEM_DIR'" EXIT
 
-mkdir "$MEM_DIR" "$IP_DIR" || exit 2
+mkdir "$MEM_DIR" || exit 2
 
-umask 077
-mkfifo "$PIPE"
+if [[ ${EUID} -eq 0 ]]; then
+    # Create ramdisk on MEM_DIR if running as root.
+    mount -t ramfs -o size=${MEM_FS_SIZE} ramfs "$MEM_DIR"
+    trap "rm -f '$PIPE'; umount '$MEM_DIR'; rmdir '$MEM_DIR'" EXIT
+else
+    # Else MEM_DIR is a temporary directory.
+    trap "rm -rf '$PIPE' '$MEM_DIR'" EXIT
+fi
+
+mkdir "$IP_DIR" || exit 2
+echo -n 1 > "$COUNTER"
 
 IMAGES=$(find "$IMAGES_DIR" -name "*.png")
 IMAGES_COUNT=$(echo "$IMAGES" | wc -l)
-echo -n 1 > "$COUNTER"
 
-# TODO: create ramfs on MEM_DIR
+umask 077
+mkfifo "$PIPE"
 
 # Consider socat instead of nc to get rid of blocking.
 while :; do
