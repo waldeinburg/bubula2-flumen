@@ -146,7 +146,6 @@ rm -rf "$PIPE" "$MEM_DIR"
 trap "rm -rf '$PIPE' '$MEM_DIR'" EXIT
 
 mkdir "$MEM_DIR" "$IP_DIR" || exit 2
-touch "$NC_ERR"
 
 umask 077
 mkfifo "$PIPE"
@@ -159,5 +158,5 @@ echo -n 1 > "$COUNTER"
 
 # Consider socat instead of nc to get rid of blocking.
 while :; do
-    cat "$PIPE" | process_request | nc -vlp "$PORT" 2> "$NC_ERR" > "$PIPE"
+    nc -vlp "$PORT" <"$PIPE" 2>"$NC_ERR" | process_request >"$PIPE"
 done
