@@ -4,8 +4,9 @@ DEBUG=
 PORT=8080
 PIPE="server_pipe"
 IMAGES_DIR="img"
-MEM_FS_SIZE=1k
 MEM_DIR="mem"
+MEM_FS_EXTRA_K=10
+MEM_IMG_DATA_DIR="${MEM_DIR}/img_data"
 IP_DIR="${MEM_DIR}/ip"
 NC_ERR="${MEM_DIR}/nc_err"
 COUNTER="${MEM_DIR}/counter"
@@ -147,8 +148,7 @@ EOF
             return
         fi
 
-        IMG=$(echo "$IMAGES" | sed -n "${n}{p;q}")
-        IMG_DATA=$(base64 -w0 "$IMG")
+        IMG_DATA=$(cat "${MEM_IMG_DATA_DIR}/${n}")
 
         set_headers "$HEADER_OK" "$CT_HTML"
         html_body <<EOF
@@ -171,7 +171,10 @@ mkdir "$MEM_DIR" || exit 2
 
 if [[ ${EUID} -eq 0 ]]; then
     # Create ramdisk on MEM_DIR if running as root.
-    mount -t ramfs -o size=${MEM_FS_SIZE} ramfs "$MEM_DIR"
+    img_mem_size=$(du "$IMAGES_DIR" -k -d0 | cut -f1)
+    # Size increase for base64 is ceil(n / 3) * 4.
+    mem_size=$(( (img_mem_size / 3 + 1) * 4 + MEM_FS_EXTRA_K ))
+    mount -t ramfs -o size="${mem_size}k" ramfs "$MEM_DIR"
     trap "rm -f '$PIPE'; umount '$MEM_DIR'; rmdir '$MEM_DIR'" EXIT
 else
     # Else MEM_DIR is a temporary directory.
@@ -181,8 +184,15 @@ fi
 mkdir "$IP_DIR" || exit 2
 echo -n 1 > "$COUNTER"
 
-IMAGES=$(find "$IMAGES_DIR" -name "*.png" | sort)
-IMAGES_COUNT=$(echo "$IMAGES" | wc -l)
+# "Preload" images by storing image base64 data on ramdisk.
+# This way we won't read from the SD while running.
+mkdir "$MEM_IMG_DATA_DIR" || exit 2
+n=0
+find "$IMAGES_DIR" -name "*.png" | sort | while read f; do
+    n=$((n + 1))
+    base64 -w0 "$f" > "${MEM_IMG_DATA_DIR}/${n}"
+done
+IMAGES_COUNT=$(find "$MEM_IMG_DATA_DIR" -type f | wc -l)
 
 umask 077
 mkfifo "$PIPE"
