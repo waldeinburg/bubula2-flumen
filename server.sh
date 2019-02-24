@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-DEBUG=1
+DEBUG=
 PORT=8080
 PIPE="server_pipe"
 IMAGES_DIR="img"
@@ -9,7 +9,7 @@ MEM_DIR="mem"
 IP_DIR="${MEM_DIR}/ip"
 NC_ERR="${MEM_DIR}/nc_err"
 COUNTER="${MEM_DIR}/counter"
-WAIT_SECS=8
+WAIT_SECS=9
 
 HTTP_STR="HTTP/1.0"
 HEADER_OK="$HTTP_STR 200 OK"
@@ -32,6 +32,12 @@ HTML_HEADER=$(cat <<EOF | norm
     <meta name="author" content="Daniel Lundsgaard Skovenborg"/>
     <link rel="shortcut icon" href="http://bubula2.com/img/favicon.ico"/>
     <title>Bubula² Flow</title>
+    <style>
+      body {
+        max-width: 800px;
+        padding: 10px;
+      }
+    </style>
 </head>
 <body>
 EOF
@@ -97,10 +103,12 @@ EOF
             return
         fi
 
-        ip=$(grep "^Connection" "$NC_ERR" | sed -r "s/^Connection from \[(([0-9]+\.){3}[0-9]+)].*/ip=\1/")
+        ip=$(grep "^Connection" "$NC_ERR" | sed -r "s/^Connection from \[(([0-9]+\.){3}[0-9]+)].*/\1/")
         ip_file="${IP_DIR}/${ip}"
         new_ip=$([[ -f "$ip_file" ]] || echo 1)
         must_wait=
+        wait_time=${WAIT_SECS}
+
         if [[ ${new_ip} ]]; then
             touch "$ip_file"
         else
@@ -109,16 +117,27 @@ EOF
             elapsed=$(( ${cur_time} - ${ip_time} ))
             if [[ ${elapsed} -lt ${WAIT_SECS} ]]; then
                 must_wait=1
+                wait_time=$(( ${WAIT_SECS} - ${elapsed} ))
             else
                 # Waiting time is over. Update time.
                 touch "$ip_file"
             fi
         fi
 
+        wait_msg="<p>You may reload the page to see another image in ${wait_time} seconds from now.</p>"
+
         if [[ ${must_wait} ]]; then
             set_headers "$HEADER_TOO_MANY_REQ" "$CT_HTML"
             html_body <<-EOF
-<h1>Sorry, you need to wait bit</h1>
+<h1>Sorry, you need to wait a bin</h1>
+<p>${wait_msg}</p>
+<blockquote>
+<p>Bin (s): Unit of measurement. The shortest period of time you may use
+staring contemplatively in front of every painting in a museum to ensure
+that everyone else won't think that you are a complete moron.<br/>
+1 bin = 8.5 seconds</p>
+<p>(Anders Lund Madsen, "Madsens ÆØÅ", my translation.)
+</blockquote>
 <p>
 If you see this message unexpectedly there's someone else on your network
 having the same obscure interests as you. You should drink a cup of coffee
@@ -135,6 +154,7 @@ EOF
         html_body <<EOF
 <p><img alt="image" src="data:image/png;base64,${IMG_DATA}"/>
 <p>${n} of ${IMAGES_COUNT}</p>
+<p>${wait_msg}</p>
 EOF
 
         # Increment counter.
@@ -142,7 +162,6 @@ EOF
         ;;
     esac
 }
-
 
 cd $(dirname "$0") || exit 1
 
@@ -162,7 +181,7 @@ fi
 mkdir "$IP_DIR" || exit 2
 echo -n 1 > "$COUNTER"
 
-IMAGES=$(find "$IMAGES_DIR" -name "*.png")
+IMAGES=$(find "$IMAGES_DIR" -name "*.png" | sort)
 IMAGES_COUNT=$(echo "$IMAGES" | wc -l)
 
 umask 077
