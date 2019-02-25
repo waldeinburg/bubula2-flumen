@@ -58,13 +58,28 @@ set_headers () {
         printf "${1}\r\n"
         shift
     done
-    printf "\r\n"
 }
 
-html_body () {
-    echo "$HTML_HEADER"
-    cat | norm
-    echo "$HTML_FOOTER"
+finish_response () {
+    body=$(cat)
+    len=$(echo -n "$body" | wc -c)
+    set_headers "Content-Length: ${len}"
+    printf "\r\n"
+    echo -n "$body"
+}
+
+text_response () {
+    set_headers "$@" "$CT_TEXT"
+    finish_response
+}
+
+html_response () {
+    set_headers "$@" "$CT_HTML"
+    {
+        echo -n "$HTML_HEADER"
+        cat | norm
+        echo -n "$HTML_FOOTER"
+    } | finish_response
 }
 
 process_request () {
@@ -83,12 +98,11 @@ process_request () {
 
     case "$http_path" in
     '/favicon.ico')
-        set_headers "$HEADER_NOT_FOUND" "$CT_TEXT"
-        echo "There's no favicon. This is not an easter egg. Or maybe it is."
+        echo -n "There's no favicon. This is not an easter egg. Or maybe it is." |
+        text_response "$HEADER_NOT_FOUND"
        ;;
     '/robots.txt')
-        set_headers "$HEADER_OK" "$CT_TEXT"
-        cat <<EOF
+        text_response "$HEADER_OK" <<EOF
 User-agent: *
 Disallow: /
 EOF
@@ -96,8 +110,7 @@ EOF
     *)  # Any request
         n=$(cat "$COUNTER")
         if [[ ${n} -gt ${IMAGES_COUNT} ]]; then
-            set_headers "$HEADER_OK" "$CT_HTML"
-            html_body <<EOF
+            html_response "$HEADER_OK" <<EOF
 <h1>Sorry, show's over!</h1>
 <p>Please try again next week!</p>
 EOF
@@ -125,11 +138,10 @@ EOF
             fi
         fi
 
-        wait_msg="<p>You may reload the page to see another image in ${wait_time} seconds from now.</p>"
+        wait_msg="You may reload the page to see another image in ${wait_time} seconds from now."
 
         if [[ ${must_wait} ]]; then
-            set_headers "$HEADER_TOO_MANY_REQ" "$CT_HTML"
-            html_body <<-EOF
+            html_response "$HEADER_TOO_MANY_REQ" <<EOF
 <h1>Sorry, you need to wait a bin</h1>
 <p>${wait_msg}</p>
 <blockquote>
@@ -150,8 +162,7 @@ EOF
 
         IMG_DATA=$(cat "${MEM_IMG_DATA_DIR}/${n}")
 
-        set_headers "$HEADER_OK" "$CT_HTML"
-        html_body <<EOF
+        html_response "$HEADER_OK" <<EOF
 <p><img alt="image" src="data:image/png;base64,${IMG_DATA}"/>
 <p>${n} of ${IMAGES_COUNT}</p>
 <p>${wait_msg}</p>
