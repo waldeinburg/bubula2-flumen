@@ -117,7 +117,8 @@ EOF
             return
         fi
 
-        ip=$(grep "^Connection" "$NC_ERR" | sed -r "s/^Connection from \[(([0-9]+\.){3}[0-9]+)].*/\1/")
+        # Different versions of nc have different messages for connection.
+        ip=$(grep -i "connect" "$NC_ERR" | sed -r "s/^.+? from [^[]*\[(([0-9]+\.){3}[0-9]+)].*/\1/")
         ip_file="${IP_DIR}/${ip}"
         new_ip=$([[ -f "$ip_file" ]] || echo 1)
         must_wait=
