@@ -115,10 +115,10 @@ EOF
         else
             ip_time=$(stat -c %Y "$ip_file")
             cur_time=$(date +%s)
-            elapsed=$(( ${cur_time} - ${ip_time} ))
+            elapsed=$((cur_time - ip_time))
             if [[ ${elapsed} -lt ${WAIT_SECS} ]]; then
                 must_wait=1
-                wait_time=$(( ${WAIT_SECS} - ${elapsed} ))
+                wait_time=$((WAIT_SECS - elapsed))
             else
                 # Waiting time is over. Update time.
                 touch "$ip_file"
@@ -158,7 +158,7 @@ EOF
 EOF
 
         # Increment counter.
-        echo -n $(( ${n} + 1 )) > "$COUNTER"
+        echo -n $((n + 1)) > "$COUNTER"
         ;;
     esac
 }
