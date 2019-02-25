@@ -2,3 +2,4 @@
 *.iml
 server_pipe
 img
+config-*.inc.sh
