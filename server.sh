@@ -167,6 +167,7 @@ EOF
 <p><img alt="image" src="data:image/png;base64,${IMG_DATA}"/>
 <p>${n} of ${IMAGES_COUNT}</p>
 <p>${wait_msg}</p>
+<p><a href="http://bubula2.com">Copyright © 2012-$(date +%Y) Daniel Lundsgaard Skovenborg (Waldeinburg).</a></p>
 EOF
 
         # Increment counter.
