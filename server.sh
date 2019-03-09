@@ -22,7 +22,9 @@ CT_TEXT="$CT: text/plain"
 CT_HTML="$CT: text/html"
 
 norm () {
-    tr '\n' ' ' | sed 's/ +/ /g'
+    # Replace newlines (tr), normalize space (sed), trim (xargs echo)
+    # (there will usually be a trailing newline converted to space).
+    tr '\n' ' ' | sed -r 's/ +/ /g' | xargs echo -n
 }
 
 HTML_HEADER=$(cat <<EOF | norm
