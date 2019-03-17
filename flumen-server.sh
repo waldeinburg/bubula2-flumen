@@ -34,7 +34,7 @@ HTML_HEADER=$(cat <<EOF | norm
     <meta charset="UTF-8"/>
     <meta name="author" content="Daniel Lundsgaard Skovenborg"/>
     <link rel="shortcut icon" href="http://bubula2.com/img/favicon.ico"/>
-    <title>Bubula² Flow</title>
+    <title>Bubula² Flumen</title>
     <style>
       body {
         max-width: 800px;

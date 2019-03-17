@@ -1,12 +1,12 @@
-# Bubula² Flow
+# Bubula² Flumen
 
-This is the source code of [Bubula² Flow](http://flow.bubula2.com) (please notice that the link is dead most of the time) by Daniel Lundsgaard Skovenborg, <waldeinburg@bubula2.com>.
+This is the source code of [Bubula² Flumen](http://flumen.bubula2.com) (please notice that the link is dead most of the time) by Daniel Lundsgaard Skovenborg, <waldeinburg@bubula2.com>.
 
 It's a primitive webserver consisting of a single shell script and an image folder. The images are not included in the source tree.
 
 Please regard this code as a joke or work of art or both. Because it can only serve one request at a time you can make a DOS attack against it just by facing against its location and yell ... okay, maybe a little more effort than that but not much.
 
-See [the Bubula² Flow page](http://flow.bubula2.com/en/flow) for details.
+See [the Bubula² Flumen page](http://flumen.bubula2.com/en/flumen) for details.
 
 
 ## Technical details
