@@ -1,0 +1,10 @@
+[Unit]
+Description=Bubula2 Flumen server
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/var/flumen/flumen-server.sh
+
+[Install]
+WantedBy=multi-user.target

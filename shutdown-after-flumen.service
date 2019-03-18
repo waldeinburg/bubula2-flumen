@@ -1,0 +1,11 @@
+[Unit]
+Description=Shutdown one hour after Flumen server is started
+After=flumen.service
+
+[Service]
+Type=oneshot
+# Note to future self: To get this to work: apt install dbus and systemctl unmask systemd-logind
+ExecStart=/sbin/shutdown +60
+
+[Install]
+WantedBy=multi-user.target
