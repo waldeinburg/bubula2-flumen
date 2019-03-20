@@ -31,9 +31,9 @@ CT_TEXT="$CT: text/plain"
 CT_HTML="$CT: text/html"
 
 norm () {
-    # Replace newlines (tr), normalize space (sed), trim (xargs echo)
+    # Replace newlines (tr), normalize space and trim
     # (there will usually be a trailing newline converted to space).
-    tr '\n' ' ' | sed -r 's/ +/ /g' | xargs echo -n
+    tr '\n' ' ' | sed -r 's/ +/ /g; s/ $//'
 }
 
 HTML_HEADER=$(cat <<EOF | norm
