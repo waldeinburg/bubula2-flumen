@@ -60,6 +60,11 @@ HTML_FOOTER=$(cat <<EOF | norm
 EOF
 )
 
+img_order () {
+    # Alternative: sort
+    shuf
+}
+
 get_request_element () {
     echo "$1" | cut -d' ' -f$2
 }
@@ -214,7 +219,7 @@ echo -n 1 > "$COUNTER"
 # This way we won't read from the SD while running.
 mkdir "$MEM_IMG_DATA_DIR" || exit 2
 n=0
-find "$IMAGES_DIR" -name "*.png" | sort | while read f; do
+find "$IMAGES_DIR" -name "*.png" | img_order | while read f; do
     n=$((n + 1))
     base64 -w0 "$f" > "${MEM_IMG_DATA_DIR}/${n}"
 done
