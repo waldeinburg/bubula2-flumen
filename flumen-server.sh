@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 
-DEBUG=
+# Must be the first statement to avoid absolute path to config file.
+cd $(dirname "$0") || exit 1
+
+source config-flumen-server.inc.sh
+
 # TREAT_SELF: Allow my own IP to view the site without advancing the counter.
-# The method is based on DNS lookup and assumes that the site is running under my couch.
 TREAT_SELF=1
-HOST="flumen.bubula2.com"
-SELF_IP=
+# Hard code IP instead of using "host flumen.bubula2.com" (assumes that the site
+# is running under my couch) to avoid installing "host" on the small Raspberry Pi.
+SELF_IP="$CFG_SELF_IP"
 PORT=8080
 PIPE="server_pipe"
 IMAGES_DIR="img"
@@ -186,7 +190,6 @@ EOF
     esac
 }
 
-cd $(dirname "$0") || exit 1
 
 rm -rf "$PIPE" "$MEM_DIR"
 
@@ -220,14 +223,6 @@ IMAGES_COUNT=$(find "$MEM_IMG_DATA_DIR" -type f | wc -l)
 umask 077
 mkfifo "$PIPE"
 
-
-# Find IP for host.
-if [[ "$TREAT_SELF" ]]; then
-    host_re=$(host "$HOST" | sed 's/\./\\./g')
-    ip_re='[0-9]{1,3}([0-9]{1,3}\.){3}'
-    HOST_IP=$(host "$host_re" | sed -rn "/^${host_re} has address ${ip_re}$/ { s/.*(${ip_re})/\1/; p }")
-    [[ -z "$HOST_IP" ]] && "Could not get IP for ${HOST}" >&2;
-fi
 
 # Consider socat instead of nc to get rid of blocking (though it's some of the fun).
 while :; do
