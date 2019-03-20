@@ -5,6 +5,7 @@ cd $(dirname "$0") || exit 1
 
 source config-flumen-server.inc.sh
 
+LOG=1
 # TREAT_SELF: Allow my own IP to view the site without advancing the counter.
 TREAT_SELF=1
 # Hard code IP instead of using "host flumen.bubula2.com" (assumes that the site
@@ -65,6 +66,15 @@ img_order () {
     shuf
 }
 
+# Log each request in one line.
+log () {
+    [[ "$LOG" ]] && echo -n "${1}; " >&2
+}
+
+log_result () {
+    [[ "$LOG" ]] && echo "$1" >&2
+}
+
 get_request_element () {
     echo "$1" | cut -d' ' -f$2
 }
@@ -99,29 +109,45 @@ html_response () {
 }
 
 process_request () {
+    # This line will block until a request is received and should be the first line in the function.
     read request
+
+    # Different versions of nc have different messages for connection.
+    ip=$(grep -i "connect" "$NC_ERR" | sed -r "s/^.+? from [^[]*\[(([0-9]+\.){3}[0-9]+)].*/\1/")
+
+    log "$ip"
+
     if [[ -z "$request" ]]; then
         set_headers "$HEADER_BAD_REQUEST"
+        log_result "EMPTY_REQ"
         return
     fi
-    [[ "$DEBUG" ]] && echo "$request" >&2
+
+    # We might want read some headers here for logging.
 
     http_method=$(get_request_element "$request" 1)
-
-    [[ "$http_method" = 'GET' ]] || return
-
     http_path=$(get_request_element "$request" 2)
+
+    # Logging $request leads to weird behaviour because of CR.
+    log "$http_method $http_path"
+
+    if [[ "$http_method" != 'GET' ]]; then
+        log_result "NOOP"
+        return
+    fi
 
     case "$http_path" in
     '/favicon.ico')
         echo -n "There's no favicon. This is not an easter egg. Or maybe it is." |
         text_response "$HEADER_NOT_FOUND"
+        log_result "FAVICON"
        ;;
     '/robots.txt')
         text_response "$HEADER_OK" <<EOF
 User-agent: *
 Disallow: /
 EOF
+        log_result "ROBOTS"
         ;;
     *)  # Any request
         n=$(cat "$COUNTER")
@@ -130,11 +156,10 @@ EOF
 <h1>Sorry, show's over!</h1>
 <p>Please try again next week!</p>
 EOF
+            log_result "END_OF_SHOW"
             return
         fi
 
-        # Different versions of nc have different messages for connection.
-        ip=$(grep -i "connect" "$NC_ERR" | sed -r "s/^.+? from [^[]*\[(([0-9]+\.){3}[0-9]+)].*/\1/")
         ip_file="${IP_DIR}/${ip}"
         new_ip=$([[ -f "$ip_file" ]] || echo 1)
         must_wait=
@@ -175,6 +200,7 @@ having the same obscure interests as you. You should drink a cup of coffee
 together!
 </p>
 EOF
+            log_result "WAIT"
             return
         fi
 
@@ -187,6 +213,8 @@ EOF
 <p><a href="http://bubula2.com">Copyright © 2012-$(date +%Y) Daniel Lundsgaard Skovenborg (Waldeinburg).</a></p>
 EOF
 
+        log_result "SHOW ${n}"
+
         # Increment counter.
         if [[ ! "$overrule_rules" ]]; then
             echo -n $((n + 1)) > "$COUNTER"
@@ -195,6 +223,8 @@ EOF
     esac
 }
 
+
+# Setup
 
 rm -rf "$PIPE" "$MEM_DIR"
 
