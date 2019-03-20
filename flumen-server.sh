@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 
 DEBUG=
+# TREAT_SELF: Allow my own IP to view the site without advancing the counter.
+# The method is based on DNS lookup and assumes that the site is running under my couch.
+TREAT_SELF=1
+HOST="flumen.bubula2.com"
+SELF_IP=
 PORT=8080
 PIPE="server_pipe"
 IMAGES_DIR="img"
@@ -125,6 +130,7 @@ EOF
         new_ip=$([[ -f "$ip_file" ]] || echo 1)
         must_wait=
         wait_time=${WAIT_SECS}
+        overrule_rules=$([[ "$TREAT_SELF" && "$ip" = "$SELF_IP" ]] && echo y)
 
         if [[ ${new_ip} ]]; then
             touch "$ip_file"
@@ -143,7 +149,7 @@ EOF
 
         wait_msg="You may reload the page to see another image in ${wait_time} seconds from now."
 
-        if [[ ${must_wait} ]]; then
+        if [[ ${must_wait} && ! "$overrule_rules" ]]; then
             html_response "$HEADER_TOO_MANY_REQ" <<EOF
 <h1>Sorry, you need to wait a bin</h1>
 <p>${wait_msg}</p>
@@ -173,7 +179,9 @@ EOF
 EOF
 
         # Increment counter.
-        echo -n $((n + 1)) > "$COUNTER"
+        if [[ ! "$overrule_rules" ]]; then
+            echo -n $((n + 1)) > "$COUNTER"
+        fi
         ;;
     esac
 }
@@ -212,7 +220,16 @@ IMAGES_COUNT=$(find "$MEM_IMG_DATA_DIR" -type f | wc -l)
 umask 077
 mkfifo "$PIPE"
 
-# Consider socat instead of nc to get rid of blocking.
+
+# Find IP for host.
+if [[ "$TREAT_SELF" ]]; then
+    host_re=$(host "$HOST" | sed 's/\./\\./g')
+    ip_re='[0-9]{1,3}([0-9]{1,3}\.){3}'
+    HOST_IP=$(host "$host_re" | sed -rn "/^${host_re} has address ${ip_re}$/ { s/.*(${ip_re})/\1/; p }")
+    [[ -z "$HOST_IP" ]] && "Could not get IP for ${HOST}" >&2;
+fi
+
+# Consider socat instead of nc to get rid of blocking (though it's some of the fun).
 while :; do
     nc -vlp "$PORT" <"$PIPE" 2>"$NC_ERR" | process_request >"$PIPE"
 done
