@@ -1,4 +1,5 @@
-# Bubula² Flumen
+Bubula² Flumen
+==============
 
 This is the source code of [Bubula² Flumen](http://flumen.bubula2.com) (please notice that the link is dead most of the time) by Daniel Lundsgaard Skovenborg, <waldeinburg@bubula2.com>.
 
@@ -6,8 +7,22 @@ It's a primitive webserver consisting of a single shell script and an image fold
 
 Please regard this code as a joke or work of art or both. Because it can only serve one request at a time you can make a DOS attack against it just by facing against its location and yell ... okay, maybe a little more effort than that but not much.
 
-See [the Bubula² Flumen page](http://flumen.bubula2.com/en/flumen) for details.
+See [the Bubula² Flumen page](http://bubula2.com/en/flumen) for details.
 
+
+## Files
+
+- copy-to-pi.sh: Tool for copying single files to the computer lacking scp or rsync etc.
+- flumen.service: Service file for starting the server process.
+- flumen-log.sh: Tool for reading the log.
+- flumen-server.sh: The Bubula² Flumen server!
+- README.md: huh?
+- shutdown-after-flumen.service: Service to ensure that the Raspberry Pi is shut down one hour after startup, i.e., before the timer cuts the power.
+
+The following configuration files are not included in the repository and must be created to use some of the scripts.
+
+- config-copy-to-pi.inc.sh
+- config-flumen-server.inc.sh
 
 ## Technical details
 
