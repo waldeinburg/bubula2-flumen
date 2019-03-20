@@ -21,6 +21,11 @@ IP_DIR="${MEM_DIR}/ip"
 NC_ERR="${MEM_DIR}/nc_err"
 COUNTER="${MEM_DIR}/counter"
 WAIT_SECS=9
+# Limits for preventing users from hitting reload violently to get the next image.
+# Max reloads that are rejected within one image.
+REQ_LIMIT=3
+# Max warnings before the user is banned.
+MAX_WARNS=3
 
 HTTP_STR="HTTP/1.0"
 HEADER_OK="$HTTP_STR 200 OK"
@@ -161,6 +166,9 @@ EOF
         fi
 
         ip_file="${IP_DIR}/${ip}"
+        ip_count_file="${ip_file}_count"
+        ip_warn_file="${ip_file}_warn"
+        ip_ban_file="${ip_file}_ban"
         new_ip=$([[ -f "$ip_file" ]] || echo 1)
         must_wait=
         wait_time=${WAIT_SECS}
@@ -168,16 +176,66 @@ EOF
 
         if [[ ${new_ip} ]]; then
             touch "$ip_file"
+            echo -n 0 > "$ip_count_file"
         else
+            if [[ -f "$ip_ban_file" ]]; then
+                html_response "$HEADER_TOO_MANY_REQ" <<EOF
+<h1>I said, You are banned from this session!</h1>
+<p>You really must try again next week and take it easy then.</p>
+<p>But I mean it: If you were banned because multiple persons were accessing the site from the same network,
+consider making Bubula² Flumen a social event around the same machine!</p>
+EOF
+                log_result "BAN_REPEAT"
+                return
+            fi
+
             ip_time=$(stat -c %Y "$ip_file")
             cur_time=$(date +%s)
             elapsed=$((cur_time - ip_time))
             if [[ ${elapsed} -lt ${WAIT_SECS} ]]; then
+                count_val=$(cat "$ip_count_file")
+                echo -n $((count_val + 1)) > "$ip_count_file"
+                if [[ "$count_val" -gt "$REQ_LIMIT" ]]; then
+                    if [[ ! -f "$ip_warn_file" ]]; then
+                        html_response "$HEADER_TOO_MANY_REQ" <<EOF
+<h1>Hey, take it easy!</h1>
+<p><em>This is a warning!</em>
+If you keep reloading the page like that, I will ban you for this session.</p>
+EOF
+                        echo -n 1 > "$ip_warn_file"
+                        log_result "WARN 1"
+                        return
+                    else
+                        warn_count_val=$(cat "$ip_warn_file")
+                        echo -n $((warn_count_val + 1)) > "$ip_warn_file"
+                        if [[ ! "$warn_count_val" -gt "$MAX_WARNS" ]]; then
+                            html_response "$HEADER_TOO_MANY_REQ" <<EOF
+<h1>I've already warned you!</h1>
+<p><em>This is another warning!</em>
+If you keep reloading the page like that, I will ban you for this session of Bubula² Flumen.</p>
+EOF
+                            log_result "WARN ${warn_count_val}"
+                            return
+                        else
+                            html_response "$HEADER_TOO_MANY_REQ" <<EOF
+<h1>You are banned from this session!</h1>
+<p>Try again next week and take it easy then.</p>
+<p>If you were banned because multiple persons were accessing the site from the same network,
+consider making Bubula² Flumen a social event around the same machine!</p>
+EOF
+                            touch "$ip_ban_file"
+                            log_result "BAN"
+                            return
+                        fi
+                    fi
+                fi
+
                 must_wait=1
                 wait_time=$((WAIT_SECS - elapsed))
             else
                 # Waiting time is over. Update time.
                 touch "$ip_file"
+                echo -n 0 > "$ip_count_file"
             fi
         fi
 
