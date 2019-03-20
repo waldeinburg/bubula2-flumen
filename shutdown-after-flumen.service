@@ -4,8 +4,9 @@ After=flumen.service
 
 [Service]
 Type=oneshot
-# Note to future self: To get this to work: apt install dbus and systemctl unmask systemd-logind
+# Note to future self: This requires: apt install dbus and systemctl unmask systemd-logind
 ExecStart=/sbin/shutdown +60
+ExecStop=/sbin/shutdown -c
 
 [Install]
 WantedBy=multi-user.target

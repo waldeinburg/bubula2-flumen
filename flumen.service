@@ -5,6 +5,7 @@ After=network-online.target
 [Service]
 Type=simple
 ExecStart=/var/flumen/flumen-server.sh
+ExecStop=/usr/bin/pkill flumen-server.sh
 
 [Install]
 WantedBy=multi-user.target
