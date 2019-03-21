@@ -1,6 +1,7 @@
 .idea
 *.iml
 server_pipe
+org_img
 img
 config-*.inc.sh
 TODO.md
