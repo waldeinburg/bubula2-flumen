@@ -17,13 +17,13 @@ source config-dev.inc.sh
 # Required setup:
 # $ systemctl unmask systemd-logind
 
-ssh_cmd () {
+ssh_run () {
     CMD="$1"
     echo "Running: ${CMD}"
-    ssh "$SSH_USER"@"$SSH_HOST" "$1"
+    echo "$CMD" | ssh "$SSH_USER"@"$SSH_HOST" bash
 }
 
-[[ "$INSTALL" ]] && ssh_cmd "mkdir -p /var/flumen/img"
+[[ "$INSTALL" ]] && ssh_run "mkdir -p /var/flumen/img"
 
 ./copy-to-rpi.sh flumen-server.sh "${SERVER_DIR}/"
 ./copy-to-rpi.sh flumen.service /etc/systemd/system/
@@ -31,15 +31,15 @@ ssh_cmd () {
 ./copy-to-rpi.sh flumen-log.sh "${TOOLS_DIR}/"
 
 if [[ "$INSTALL" ]]; then
-    ssh_cmd "chmod 754 ${SERVER_DIR}/flumen-server.sh"
-    ssh_cmd "chmod 644 /etc/systemd/system/flumen.service"
-    ssh_cmd "chmod 644 /etc/systemd/system/shutdown-after-flumen.service"
-    ssh_cmd "chmod 755 ${TOOLS_DIR}/flumen-log.sh"
-    ssh_cmd "systemctl enable flumen.service"
-    ssh_cmd "systemctl enable shutdown-after-flumen.service"
+    ssh_run "chmod 754 ${SERVER_DIR}/flumen-server.sh"
+    ssh_run "chmod 644 /etc/systemd/system/flumen.service"
+    ssh_run "chmod 644 /etc/systemd/system/shutdown-after-flumen.service"
+    ssh_run "chmod 755 ${TOOLS_DIR}/flumen-log.sh"
+    ssh_run "systemctl enable flumen.service"
+    ssh_run "systemctl enable shutdown-after-flumen.service"
 else
-    ssh_cmd "systemctl daemon-reload"
-    ssh_cmd "systemctl restart flumen"
+    ssh_run "systemctl daemon-reload"
+    ssh_run "systemctl restart flumen"
 fi
 
 echo "Done!"
