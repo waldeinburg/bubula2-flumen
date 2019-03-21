@@ -12,7 +12,7 @@ See [the Bubula² Flumen page](http://bubula2.com/en/flumen) for details.
 
 ## Files
 
-- copy-to-pi.sh: Tool for copying single files to the computer lacking scp or rsync etc.
+- copy-to-rpi.sh: Tool for copying single files to the computer lacking scp or rsync etc.
 - flumen.service: Service file for starting the server process.
 - flumen-log.sh: Tool for reading the log.
 - flumen-server.sh: The Bubula² Flumen server!
