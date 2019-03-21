@@ -1,6 +1,8 @@
 [Unit]
 Description=Shutdown one hour after Flumen server is started
-After=flumen.service
+# It's important that we start after timesyncd. Else the shutdown will be set
+# to 60 minutes after last shutdown time and never run.
+After=flumen.service systemd-timesyncd.service
 
 [Service]
 Type=oneshot
