@@ -5,13 +5,19 @@ cd $(dirname "$0") || exit 1
 
 source config-flumen-server.inc.sh
 
-LOG=1
-# TREAT_SELF: Allow my own IP to view the site without advancing the counter.
-TREAT_SELF=1
+# Values from config file:
+# - LOG: Do log.
+# - TREAT_SELF: Allow my own IP to view the site without advancing the counter.
 # Hard code IP instead of using "host flumen.bubula2.com" (assumes that the site
 # is running under my couch) to avoid installing "host" on the small Raspberry Pi.
-SELF_IP="$CFG_SELF_IP"
-PORT=8080
+# - SELF_IP: My IP.
+# - PORT: Port.
+# - WAIT_SECS: Number of seconds the user must wait before being allowed to view a new image.
+# Limits for preventing users from hitting reload violently to get the next image:
+# - REQ_LIMIT: Max reloads that are rejected within one image.
+# - MAX_WARNS: Max warnings before the user is banned.
+
+# Values unlikely to change:
 PIPE="server_pipe"
 IMAGES_DIR="img"
 MEM_DIR="mem"
@@ -20,12 +26,6 @@ MEM_IMG_DATA_DIR="${MEM_DIR}/img_data"
 IP_DIR="${MEM_DIR}/ip"
 NC_ERR="${MEM_DIR}/nc_err"
 COUNTER="${MEM_DIR}/counter"
-WAIT_SECS=9
-# Limits for preventing users from hitting reload violently to get the next image.
-# Max reloads that are rejected within one image.
-REQ_LIMIT=3
-# Max warnings before the user is banned.
-MAX_WARNS=3
 
 HTTP_STR="HTTP/1.0"
 HEADER_OK="$HTTP_STR 200 OK"
