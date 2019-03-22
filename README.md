@@ -17,12 +17,15 @@ See [the Bubula² Flumen page](http://bubula2.com/en/flumen) for details.
 - flumen-log.sh: Tool for reading the log.
 - flumen-server.sh: The Bubula² Flumen server!
 - README.md: huh?
+- setup-rpi.sh: Install and update script.
 - shutdown-after-flumen.service: Service to ensure that the Raspberry Pi is shut down one hour after startup, i.e., before the timer cuts the power.
+- update-images.sh: Generate and upload images from sources.
 
 The following configuration files are not included in the repository and must be created to use some of the scripts.
 
-- config-copy-to-pi.inc.sh
+- config-dev.inc.sh
 - config-flumen-server.inc.sh
+
 
 ## Technical details
 
