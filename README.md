@@ -5,8 +5,9 @@ This is the source code of [Bubula² Flumen](http://flumen.bubula2.com)
 (please notice that the link is dead most of the time) by Daniel
 Lundsgaard Skovenborg, <waldeinburg@bubula2.com>.
 
-It's a primitive webserver consisting of a single shell script and an
-image folder. The images are not included in the source tree.
+It's a primitive webserver consisting of a single shell script (with a
+separate configuration file) and an image folder. The images are not
+included in the source tree.
 
 Please regard this code as a joke or work of art or both. Because it can
 only serve one request at a time you can make a DOS attack against it
