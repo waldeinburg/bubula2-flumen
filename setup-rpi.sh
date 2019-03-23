@@ -13,8 +13,6 @@ source config-dev.inc.sh
 
 # Required packages:
 # - nc
-# Required setup:
-# $ systemctl unmask systemd-logind
 
 ssh_run () {
     CMD="$1"
