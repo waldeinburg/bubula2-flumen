@@ -1,0 +1,11 @@
+# Shutdown service. Cannot be installed. Is run by shutdown-after-flumen.timer.
+# Why not just "shutdown +60" instead of a timer? Because I couldn't find out
+# how to make the service run after timesyncd had finished synchronizing the
+# clock. That meant that shutdown was always set to one hour after the the
+# previous shutdown and did not run.
+[Unit]
+Description=Shutdown
+
+[Service]
+Type=oneshot
+ExecStart=/sbin/shutdown now

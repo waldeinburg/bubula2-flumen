@@ -1,0 +1,16 @@
+[Unit]
+Description=Shutdown one hour after Flumen server is started
+# We could use OnBootSec to be sure that the computer, not the server process,
+# runs for one hour because we want to shut down before the timer socket cuts
+# the power. Instead, let the timer socket have power for a few minutes more
+# than one hour and ensure that the service is actually running for one hour.
+# This also means that we can stop and start the timer and run for one hour
+# because the time is not relative to boot.
+After=flumen.service
+
+[Timer]
+Unit=shutdown.service
+OnActiveSec=3600
+
+[Install]
+WantedBy=multi-user.target
