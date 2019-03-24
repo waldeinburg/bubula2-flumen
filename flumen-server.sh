@@ -12,6 +12,9 @@ source config-flumen-server.inc.sh
 # is running under my couch) to avoid installing "host" on the small Raspberry Pi.
 # - SELF_IP: My IP.
 # - PORT: Port.
+# - TIMEOUT: Request timeout. The value should probably never be more than the
+#   minimum, 1 second, because the server is not even available while another is
+#   connected (i.e., the browser will give up immediately, not wait).
 # - WAIT_SECS: Number of seconds the user must wait before being allowed to view a new image.
 # Limits for preventing users from hitting reload violently to get the next image:
 # - REQ_LIMIT: Max reloads that are rejected within one image.
@@ -114,29 +117,25 @@ html_response () {
 }
 
 process_request () {
-    # This line will block until a request is received and should be the first line in the function.
-    read request
+    # Timeout to prevent blocking the server by opening a connection without sending data.
+    read -t "$TIMEOUT" request || return
 
     # Different versions of nc have different messages for connection.
     ip=$(grep -i "connect" "$NC_ERR" | sed -r "s/^.+? from [^[]*\[(([0-9]+\.){3}[0-9]+)].*/\1/")
 
     log "$ip"
 
-    if [[ -z "$request" ]]; then
-        set_headers "$HEADER_BAD_REQUEST"
-        log_result "EMPTY_REQ"
-        return
-    fi
-
-    # We might want read some headers here for logging.
-
+    # Empty or malformed requests will just result in empty variables.
     http_method=$(get_request_element "$request" 1)
     http_path=$(get_request_element "$request" 2)
 
     # Logging $request leads to weird behaviour because of CR.
     log "$http_method $http_path"
 
-    if [[ "$http_method" != 'GET' ]]; then
+    # We might want read some headers here for logging.
+
+    if [[ "$http_method" != "GET" ]]; then
+        text_response "$HEADER_BAD_REQUEST"
         log_result "NOOP"
         return
     fi
@@ -319,5 +318,15 @@ mkfifo "$PIPE"
 
 # Consider socat instead of nc to get rid of blocking (though it's some of the fun).
 while :; do
-    nc -vlp "$PORT" <"$PIPE" 2>"$NC_ERR" | process_request >"$PIPE"
+    # -v: Then process_request can read IP address from the redirected stderr.
+    # -w: There is an error in the nc man page: Yes, nc will wait for a
+    # connection forever. But once the connection is established there is indeed
+    # a timeout until any data are received. The timeout is necessary together
+    # with read -t in process_request:
+    # Without read -t: read in process_request will block forever. I assume the
+    # pipe will break with nc -w but the loop will still be blocked.
+    # Without nc -w: The idle connection will still block others from opening
+    # connections. It will not be terminated just because process_request
+    # returns.
+    nc -vlp "$PORT" -w "$TIMEOUT" <"$PIPE" 2>"$NC_ERR" | process_request >"$PIPE"
 done
