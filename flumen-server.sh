@@ -66,6 +66,7 @@ HTML_HEADER=$(cat <<EOF | norm
 EOF
 )
 HTML_FOOTER=$(cat <<EOF | norm
+<p><a href="http://bubula2.com/en/flumen/">About Bubula² Flumen.</a></p>
 </body>
 </html>
 EOF
