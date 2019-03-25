@@ -39,6 +39,8 @@ CT="Content-Type"
 CT_TEXT="$CT: text/plain"
 CT_HTML="$CT: text/html"
 
+NC_CMD="nc -vlp $PORT"
+
 norm () {
     # Replace newlines (tr), normalize space and trim
     # (there will usually be a trailing newline converted to space).
@@ -117,13 +119,23 @@ html_response () {
 }
 
 process_request () {
-    # Timeout to prevent blocking the server by opening a connection without sending data.
-    read -t "$TIMEOUT" request || return
-
-    # Different versions of nc have different messages for connection.
-    ip=$(grep -i "connect" "$NC_ERR" | sed -r "s/^.+? from [^[]*\[(([0-9]+\.){3}[0-9]+)].*/\1/")
+    ip=
+    while [[ -z "$ip" ]]; do
+        # Different versions of nc have different messages for connection.
+        ip=$(grep -i "connect" "$NC_ERR" | sed -r "s/^.+? from [^[]*\[(([0-9]+\.){3}[0-9]+)].*/\1/")
+        # Doing a loop with cat and while read turns out to be impossible to
+        # break out of for some reason. Sleep a little to ease the CPU usage.
+        sleep 0.1
+    done
 
     log "$ip"
+
+    # Timeout to prevent blocking the server by opening a connection without sending data.
+    read -t "$TIMEOUT" request
+    if [[ $? -ne 0 ]]; then
+        log_result "TIMEOUT"
+        return
+    fi
 
     # Empty or malformed requests will just result in empty variables.
     http_method=$(get_request_element "$request" 1)
@@ -280,6 +292,15 @@ EOF
     esac
 }
 
+# Wrapper around process_request to ensure that the connection cannot be hold
+# after output has been sent.
+process_request_and_end () {
+    nc_pid=$(pgrep -f "$NC_CMD")
+    process_request
+    # Will output always have been written to pipe at this point?
+    kill "$nc_pid"
+}
+
 
 # Setup
 
@@ -318,15 +339,9 @@ mkfifo "$PIPE"
 
 # Consider socat instead of nc to get rid of blocking (though it's some of the fun).
 while :; do
+    # Netcat command is a variable to be able to find it with pgrep.
     # -v: Then process_request can read IP address from the redirected stderr.
-    # -w: There is an error in the nc man page: Yes, nc will wait for a
-    # connection forever. But once the connection is established there is indeed
-    # a timeout until any data are received. The timeout is necessary together
-    # with read -t in process_request:
-    # Without read -t: read in process_request will block forever. I assume the
-    # pipe will break with nc -w but the loop will still be blocked.
-    # Without nc -w: The idle connection will still block others from opening
-    # connections. It will not be terminated just because process_request
-    # returns.
-    nc -vlp "$PORT" -w "$TIMEOUT" <"$PIPE" 2>"$NC_ERR" | process_request >"$PIPE"
+    # The following order of commands avoids "broken pipe" error by cat contrary
+    # to the example in the nc man page.
+    ${NC_CMD} <"$PIPE" 2>"$NC_ERR" | process_request_and_end >"$PIPE"
 done
