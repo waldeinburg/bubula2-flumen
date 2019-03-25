@@ -1,6 +1,6 @@
 .idea
-*.iml
 server_pipe
+mem
 org_img
 img
 config-*.inc.sh
