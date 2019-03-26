@@ -82,17 +82,26 @@ log () {
     [[ "$LOG" ]] && echo -n "${1}; " >&2
 }
 
-log_result () {
+log_ln () {
     [[ "$LOG" ]] && echo "$1" >&2
+}
+
+# Just an alias.
+log_result () {
+    log_ln "$1"
 }
 
 get_request_element () {
     echo "$1" | cut -d' ' -f$2
 }
 
+# The following uses redirect of stderr to /dev/null and return on error to
+# avoid cluttering log with "write error: Broken pipe" when client has
+# disconnected before we have finished writing.
+
 set_headers () {
     while [[ $# > 0 ]]; do
-        printf "${1}\r\n"
+        printf "${1}\r\n" || return 1
         shift
     done
 }
@@ -100,23 +109,23 @@ set_headers () {
 finish_response () {
     body=$(cat)
     len=$(echo -n "$body" | wc -c)
-    set_headers "Content-Length: ${len}"
-    printf "\r\n"
+    set_headers "Content-Length: ${len}" || return
+    printf "\r\n" || return
     echo -n "$body"
 }
 
 text_response () {
-    set_headers "$@" "$CT_TEXT"
-    finish_response
+    set_headers "$@" "$CT_TEXT" 2>/dev/null || return
+    finish_response 2>/dev/null
 }
 
 html_response () {
-    set_headers "$@" "$CT_HTML"
+    set_headers "$@" "$CT_HTML" 2>/dev/null || return
     {
         echo -n "$HTML_HEADER"
         cat | norm
         echo -n "$HTML_FOOTER"
-    } | finish_response
+    } | finish_response 2>/dev/null
 }
 
 process_request () {
@@ -299,7 +308,8 @@ process_request_and_end () {
     nc_pid=$(pgrep -f "$NC_CMD")
     process_request
     # Will output always have been written to pipe at this point?
-    kill "$nc_pid"
+    # Avoid "write error: Broken pipe" from log when client has closed connection.
+    kill "$nc_pid" 2>/dev/null || log_ln "Client has already closed connection. Data may not have been received."
 }
 
 
