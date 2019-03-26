@@ -307,9 +307,16 @@ EOF
 process_request_and_end () {
     nc_pid=$(pgrep -f "$NC_CMD")
     process_request
-    # Will output always have been written to pipe at this point?
-    # Avoid "write error: Broken pipe" from log when client has closed connection.
-    kill "$nc_pid" 2>/dev/null || log_ln "Client has already closed connection. Data may not have been received."
+    # Give some time to flush the pipe. Also exit if client have closed connection
+    # which the browser will do when received data indicated by Content-Length.
+    n=0
+    while [[ ${n} -lt 10 ]] && kill -0 "$nc_pid" 2>/dev/null; do
+        n=$((n + 1))
+        sleep 0.1
+    done
+    # Client may already have closed connection because all data is downloaded.
+    # Else, kill to prevent holding the connection, thereby blocking the server.
+    kill "$nc_pid" 2>/dev/null
 }
 
 
