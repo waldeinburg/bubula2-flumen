@@ -58,7 +58,7 @@ HTML_HEADER=$(cat <<EOF | norm
     <style>
       body {
         max-width: 800px;
-        padding: 10px;
+        margin: 10px;
       }
     </style>
 </head>
