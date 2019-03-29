@@ -124,6 +124,37 @@ wait_for_ip () {
     echo "$ip"
 }
 
+# Read line from connection; return 0 on timeout.
+read_conn_line () {
+    # Arg 1: limit to n bytes.
+    n=
+    [[ "$1" ]] && n="-n $1"
+
+    # Timeout to prevent blocking the server by opening a connection without sending data.
+    read ${n} -t "$TIMEOUT" l
+    if [[ $? -ne 0 ]]; then
+        log_result "TIMEOUT"
+        return 1
+    fi
+    echo "$l"
+}
+
+read_headers () {
+    h=
+    while [[ "$h" != $'\r' ]]; do
+        h=$(read_conn_line) || return 1
+        echo "$h" | tr -d '\r'
+    done
+}
+
+# Assumes input from read_headers, i.e. stripped CR.
+get_header () {
+    headers="$1"
+    name="$2"
+    l=$(echo "$1" | grep -E "^${name}: ") || return 1
+    echo "$l" | sed -r "s/^${name}: (.*)/\1/"
+}
+
 # Common handling of IP and request parsing and logging.
 # Returns 1 on timeout.
 wait_for_ip_and_request () {
@@ -131,12 +162,7 @@ wait_for_ip_and_request () {
 
     log "$ip"
 
-    # Timeout to prevent blocking the server by opening a connection without sending data.
-    read -t "$TIMEOUT" request
-    if [[ $? -ne 0 ]]; then
-        log_result "TIMEOUT"
-        return 1
-    fi
+    request=$(read_conn_line) || return 1
 
     # Empty or malformed requests will just result in empty variables.
     http_method=$(get_request_element "$request" 1)

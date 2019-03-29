@@ -34,12 +34,14 @@ IP_DIR="${BASE_DIR}/ip"
 NC_ERR="${BASE_DIR}/nc_err"
 COUNTER="${BASE_DIR}/counter"
 
+# May be overriden by dev.
+ENTRANCE_URL="http://flumen.bubula2.com"
+
 # Setup for common functions:
 PORT="$MAIN_PORT"
 
 # Will be set up
 SECRET_PATH=
-ENTRANCE_URL=
 
 img_order () {
     # Alternative: sort
@@ -155,7 +157,8 @@ EOF
         fi
     fi
 
-    wait_msg="You may reload the page to see another image in ${wait_time} seconds from now."
+    wait_msg="You may <a href=\"javascript:location.reload(true)\">reload</a>\
+              the page to see another image in ${wait_time} seconds from now."
 
     if [[ ${must_wait} && ! "$overrule_rules" ]]; then
         html_response "$HEADER_TOO_MANY_REQ" <<EOF
@@ -202,16 +205,18 @@ rm -rf "$MEM_DIR"
 
 mkdir "$MEM_DIR" || exit 2
 
+trap_base="rm -f '$PIPE'"
 if [[ ${EUID} -eq 0 ]]; then
     # Create ramdisk on MEM_DIR if running as root.
     img_mem_size=$(du "$IMAGES_DIR" -k -d0 | cut -f1)
     # Size increase for base64 is ceil(n / 3) * 4.
     mem_size=$(( (img_mem_size / 3 + 1) * 4 + MEM_FS_EXTRA_K ))
     mount -t ramfs -o size="${mem_size}k" ramfs "$MEM_DIR"
-    trap "rm -f '$PIPE'; umount '$MEM_DIR'; rmdir '$MEM_DIR'" EXIT
+    #
+    trap "${trap_base}; umount '$MEM_DIR'; rmdir '$MEM_DIR'" EXIT
 else
     # Else MEM_DIR is a temporary directory.
-    trap "rm -rf '$PIPE' '$MEM_DIR'" EXIT
+    trap "${trap_base}; rm -rf '$MEM_DIR'" EXIT
 fi
 
 mkdir -p "$IP_DIR" || exit 2
@@ -234,8 +239,6 @@ echo -n "$SECRET_PATH" > "$SECRET_PATH_FILE"
 
 if [[ "$DEV" ]]; then
     ENTRANCE_URL="http://localhost:${MAIN_PORT}"
-else
-    ENTRANCE_URL="http://flumen.bubula2.com"
 fi
 
 run_server
