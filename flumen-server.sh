@@ -42,9 +42,10 @@ img_order () {
     shuf
 }
 
-process_request () {
-    ip_and_request=$(wait_for_ip_and_request) || return
-    http_method=$(get_field "$ip_and_request" 2)
+process_request_nc () {
+    ip=$(wait_for_ip)
+    request=$(wait_for_request) || return
+    http_method=$(get_field "$request" 1)
 
     if [[ "$http_method" != "GET" ]]; then
         text_response "$HEADER_BAD_REQUEST" <<EOF
@@ -54,7 +55,7 @@ EOF
         return
     fi
 
-    http_path=$(get_field "$ip_and_request" 3)
+    http_path=$(get_field "$request" 2)
 
     handle_robots_and_favicon "$http_path" && return
 
@@ -199,7 +200,7 @@ img_mem_size=$(du "$IMAGES_DIR" -k -d0 | cut -f1)
 # Size increase for base64 is ceil(n / 3) * 4.
 MEM_SIZE_K=$(( (img_mem_size / 3 + 1) * 4 + MEM_FS_EXTRA_K ))
 
-setup_server
+setup_nc_server
 
 mkdir "$IP_DIR" || exit 2
 echo -n 1 > "$COUNTER"
@@ -223,4 +224,4 @@ if [[ "$DEV" ]]; then
     ENTRANCE_URL="http://localhost:${MAIN_PORT}"
 fi
 
-run_server
+run_nc_server

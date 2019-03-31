@@ -10,12 +10,15 @@ source config-flumen-common.inc.sh
 #   connected (i.e., the browser will give up immediately, not wait).
 
 # Expected to be set by services:
-# Memory size in kilobytes.
-MEM_SIZE_K=
 # Port
 PORT=
-# Unique name (prefix for directories and files)
+# Memory size in kilobytes for ramdisk.
+# Only necessary if using nc or memory directory for other purposes.
+MEM_SIZE_K=
+# Unique name (prefix for pipe). Only necessary if using nc.
 NAME=
+# Name of process_request script. Only necessary if using socat.
+PROCESS_REQUEST=
 
 # Set by setup_server.
 PIPE=
@@ -136,6 +139,8 @@ wait_for_ip () {
         sleep 0.1
         ip=$(get_ip)
     done
+
+    log "$ip"
     echo "$ip"
 }
 
@@ -172,11 +177,7 @@ get_header () {
 
 # Common handling of IP and request parsing and logging.
 # Returns 1 on timeout.
-wait_for_ip_and_request () {
-    ip=$(wait_for_ip)
-
-    log "$ip"
-
+wait_for_request () {
     request=$(read_conn_line) || return 1
 
     # Empty or malformed requests will just result in empty variables.
@@ -187,7 +188,7 @@ wait_for_ip_and_request () {
     log "$http_method $http_path"
 
     # We might want read some headers here for logging.
-    printf '%s\t%s\t%s' "$ip" "$http_method" "$http_path"
+    printf '%s\t%s' "$http_method" "$http_path"
 }
 
 # Common handling of robots.txt and favicon.ico.
@@ -215,7 +216,7 @@ EOF
 # after output has been sent.
 process_request_and_end () {
     nc_pid=$(pgrep -f "${NC_CMD_BASE} ${PORT}")
-    process_request
+    process_request_nc
     # Give some time to flush the pipe. Also exit if client have closed connection
     # which the browser will do when received data indicated by Content-Length.
     n=0
@@ -254,13 +255,13 @@ mk_mem_dir_and_trap () {
     fi
 }
 
-setup_server () {
+setup_nc_server () {
     set_vars
     mk_mem_dir_and_trap
     create_pipe
 }
 
-run_server () {
+run_nc_server () {
     # Consider socat instead of nc to get rid of blocking (though it's some of the fun).
     while :; do
         # Netcat command is a variable to be able to find it with pgrep.
@@ -269,4 +270,10 @@ run_server () {
         # to the example in the nc man page.
         ${NC_CMD_BASE} ${PORT} <"$PIPE" 2>"$NC_ERR" | process_request_and_end >"$PIPE"
     done
+}
+
+run_socat_server () {
+    # Not crlf option; we handle CR outself to be compatible with nc.
+    # Not -d to avoid "Connection reset by peer" all the time.
+    socat -T"$TIMEOUT" TCP-LISTEN:${PORT},reuseaddr,fork SYSTEM:"$PROCESS_REQUEST"
 }
