@@ -3,16 +3,11 @@
 # Must be the first statement to avoid absolute path to config file.
 cd $(dirname "$0") || exit 1
 
-source config-flumen-server.inc.sh
 source flumen-common.inc.sh
+source config-flumen-server.inc.sh
 
 # Values from config-flumen-common.inc.sh
-# - LOG: Do log.
-# - MEM_DIR: directory of temporary files (ramdisk)
 # - MAIN_PORT: Port (must also be known by flumen-entrance-server.sh)
-# - TIMEOUT: Request timeout. The value should probably never be more than the
-#   minimum, 1 second, because the server is not even available while another is
-#   connected (i.e., the browser will give up immediately, not wait).
 
 # Values from config-flumen-server.inc.sh:
 # - TREAT_SELF: Allow my own IP to view the site without advancing the counter.
@@ -25,19 +20,18 @@ source flumen-common.inc.sh
 # - MAX_WARNS: Max warnings before the user is banned.
 
 # Values unlikely to change:
-PIPE="main_server_pipe"
-BASE_DIR="${MEM_DIR}/main"
 IMAGES_DIR="img"
 MEM_FS_EXTRA_K=10
-MEM_IMG_DATA_DIR="${BASE_DIR}/img_data"
-IP_DIR="${BASE_DIR}/ip"
-NC_ERR="${BASE_DIR}/nc_err"
-COUNTER="${BASE_DIR}/counter"
+MEM_DIR="$MAIN_MEM_DIR"
+MEM_IMG_DATA_DIR="${MEM_DIR}/img_data"
+IP_DIR="${MEM_DIR}/ip"
+COUNTER="${MEM_DIR}/counter"
 
 # May be overriden by dev.
 ENTRANCE_URL="http://flumen.bubula2.com"
 
 # Setup for common functions:
+NAME="flumen"
 PORT="$MAIN_PORT"
 
 # Will be set up
@@ -201,25 +195,13 @@ EOF
 
 # Setup
 
-rm -rf "$MEM_DIR"
+img_mem_size=$(du "$IMAGES_DIR" -k -d0 | cut -f1)
+# Size increase for base64 is ceil(n / 3) * 4.
+MEM_SIZE_K=$(( (img_mem_size / 3 + 1) * 4 + MEM_FS_EXTRA_K ))
 
-mkdir "$MEM_DIR" || exit 2
+setup_server
 
-trap_base="rm -f '$PIPE'"
-if [[ ${EUID} -eq 0 ]]; then
-    # Create ramdisk on MEM_DIR if running as root.
-    img_mem_size=$(du "$IMAGES_DIR" -k -d0 | cut -f1)
-    # Size increase for base64 is ceil(n / 3) * 4.
-    mem_size=$(( (img_mem_size / 3 + 1) * 4 + MEM_FS_EXTRA_K ))
-    mount -t ramfs -o size="${mem_size}k" ramfs "$MEM_DIR"
-    #
-    trap "${trap_base}; umount '$MEM_DIR'; rmdir '$MEM_DIR'" EXIT
-else
-    # Else MEM_DIR is a temporary directory.
-    trap "${trap_base}; rm -rf '$MEM_DIR'" EXIT
-fi
-
-mkdir -p "$IP_DIR" || exit 2
+mkdir "$IP_DIR" || exit 2
 echo -n 1 > "$COUNTER"
 
 # "Preload" images by storing image base64 data on ramdisk.

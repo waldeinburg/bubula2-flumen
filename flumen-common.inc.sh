@@ -2,9 +2,24 @@
 
 source config-flumen-common.inc.sh
 
-# Override in services
+# Values from config-flumen-common.inc.sh:
+# - LOG: Do log.
+# - MEM_DIR: directory of temporary files (ramdisk)
+# - TIMEOUT: Request timeout. The value should probably never be more than the
+#   minimum, 1 second, because the server is not even available while another is
+#   connected (i.e., the browser will give up immediately, not wait).
+
+# Expected to be set by services:
+# Memory size in kilobytes.
+MEM_SIZE_K=
+# Port
 PORT=
+# Unique name (prefix for directories and files)
+NAME=
+
+# Set by setup_server.
 PIPE=
+MEM_DIR=
 NC_ERR=
 
 HTTP_STR="HTTP/1.0"
@@ -213,6 +228,11 @@ process_request_and_end () {
     kill "$nc_pid" 2>/dev/null
 }
 
+set_vars () {
+    PIPE="${NAME}_pipe"
+    NC_ERR="${MEM_DIR}/nc_err"
+}
+
 create_pipe () {
     # Service must register trap to remove.
     rm -f "$PIPE"
@@ -220,9 +240,27 @@ create_pipe () {
     mkfifo "$PIPE"
 }
 
-run_server () {
-    create_pipe
+mk_mem_dir_and_trap () {
+    mkdir "$MEM_DIR" || exit 2
 
+    trap_base="rm -f '$PIPE'"
+    if [[ ${EUID} -eq 0 ]]; then
+        # Create ramdisk on MEM_DIR if running as root.
+        mount -t ramfs -o size="${MEM_SIZE_K}k" ramfs "$MEM_DIR"
+        trap "${trap_base}; umount '$MEM_DIR'; rmdir '$MEM_DIR'" EXIT
+    else
+        # Else MEM_DIR is a temporary directory.
+        trap "${trap_base}; rm -rf '$MEM_DIR'" EXIT
+    fi
+}
+
+setup_server () {
+    set_vars
+    mk_mem_dir_and_trap
+    create_pipe
+}
+
+run_server () {
     # Consider socat instead of nc to get rid of blocking (though it's some of the fun).
     while :; do
         # Netcat command is a variable to be able to find it with pgrep.

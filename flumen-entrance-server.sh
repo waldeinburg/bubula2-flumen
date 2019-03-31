@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 
-source config-flumen-entrance-server.inc.sh
+# Must be the first statement to avoid absolute path to config file.
+cd $(dirname "$0") || exit 1
+
+NAME="flumen-entrance"
 source flumen-common.inc.sh
+source config-flumen-entrance-server.inc.sh
 
 # Values from config-flumen-common.inc.sh: Cf. flumen-server.sh
 # Values from config-flumen-entrance-server.inc.sh
@@ -13,20 +17,20 @@ source flumen-common.inc.sh
 # - DEV_RECAPTCHA_SECRET_KEY: For localhost.
 
 # Values unlikely to change:
-PIPE="entrance_server_pipe"
-BASE_DIR="${MEM_DIR}/entrance-server"
-NC_ERR="${BASE_DIR}/nc_err"
+MEM_SIZE_K=10
+MEM_DIR="entrance_mem"
 
 # May be overridden by dev:
 MAIN_HOST="flumen.bubula2.com:${MAIN_PORT_EXTERN}"
 SITE_KEY="$RECAPTCHA_SITE_KEY"
 SECRET_KEY="$RECAPCHA_SECRET_KEY"
 
-# Setup for common functions:
-PORT="$ENTRANCE_PORT"
-
-# Will be set up
-MAIN_URL=
+main_url () {
+    # Wait for main server to create secret path (at startup or if restarted).
+    while [[ ! -f "$SECRET_PATH_FILE" ]]; do :; done
+    secret_path=$(cat "$SECRET_PATH_FILE")
+    echo -n "http://${MAIN_HOST}${secret_path}"
+}
 
 curl_google_verify () {
     curl -sd "secret=${SECRET_KEY}&response=${1}&remoteip=${2}" https://www.google.com/recaptcha/api/siteverify
@@ -88,7 +92,7 @@ EOF
     token=$(echo "$data" | sed -r 's/^g-recaptcha-response=(.*)/\1/')
 
     if is_really_not_a_robot "$token" "$ip"; then
-        text_response "$HEADER_REDIR" "Location: ${MAIN_URL}" <<EOF
+        text_response "$HEADER_REDIR" "Location: $(main_url)" <<EOF
         Welcome, earthling!
 EOF
         log_result "REDIR"
@@ -108,19 +112,12 @@ if ! pgrep -f 'flumen-server\.sh' >/dev/null; then
     exit 1
 fi
 
-mkdir "$BASE_DIR" || exit 2
-trap "rm -rf '$PIPE' '$BASE_DIR'" EXIT
+setup_server
 
 if [[ "$DEV" ]]; then
     MAIN_HOST="localhost:${MAIN_PORT}"
     SITE_KEY="$DEV_RECAPTCHA_SITE_KEY"
     SECRET_KEY="$DEV_RECAPTCHA_SECRET_KEY"
 fi
-
-# Wait for main server to create secret path.
-while [[ ! -f "$SECRET_PATH_FILE" ]]; do :; done
-
-secret_path=$(cat "$SECRET_PATH_FILE")
-MAIN_URL="http://${MAIN_HOST}${secret_path}"
 
 run_server
