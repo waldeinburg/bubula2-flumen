@@ -10,6 +10,8 @@ source config-flumen-common.inc.sh
 #   connected (i.e., the browser will give up immediately, not wait).
 
 # Expected to be set by services:
+# NC or SOCAT
+MODE=
 # Port
 PORT=
 # Memory size in kilobytes for ramdisk.
@@ -17,11 +19,10 @@ PORT=
 MEM_SIZE_K=
 # Unique name (prefix for pipe). Only necessary if using nc.
 NAME=
-# Name of process_request script. Only necessary if using socat.
-PROCESS_REQUEST=
 
-# Set by setup_server.
+# Set by setup.
 PIPE=
+# MEM_DIR will not be overriden if set.
 MEM_DIR=
 NC_ERR=
 
@@ -40,6 +41,9 @@ CT_HTML="$CT: text/html"
 SCRIPT="./$(basename "$0")"
 PROC_REQ_ARG="procreq"
 NC_CMD_BASE="nc -vlp"
+
+PROC_REQ=
+[[ "$1" = "$PROC_REQ_ARG" ]] && PROC_REQ=1
 
 norm () {
     # Replace newlines (tr), normalize space and trim
@@ -130,8 +134,12 @@ html_response () {
 
 
 get_ip () {
+    if [[ "$MODE" = NC ]]; then
         # Different versions of nc have different messages for connection.
-    grep -i "connect" "$NC_ERR" | sed -r "s/^.+? from [^[]*\[(([0-9]+\.){3}[0-9]+)].*/\1/"
+        grep -i "connect" "$NC_ERR" | sed -r "s/^.+? from [^[]*\[(([0-9]+\.){3}[0-9]+)].*/\1/"
+    else
+        echo "$SOCAT_PEERADDR"
+    fi
 }
 
 wait_for_ip () {
@@ -217,9 +225,9 @@ EOF
 
 # Wrapper around process_request to ensure that the connection cannot be hold
 # after output has been sent.
-process_request_and_end () {
+process_request_and_kill_nc () {
     nc_pid=$(pgrep -f "${NC_CMD_BASE} ${PORT}")
-    process_request_nc
+    process_request
     # Give some time to flush the pipe. Also exit if client have closed connection
     # which the browser will do when received data indicated by Content-Length.
     n=0
@@ -235,6 +243,7 @@ process_request_and_end () {
 set_vars () {
     PIPE="${NAME}_pipe"
     NC_ERR="${MEM_DIR}/nc_err"
+    [[ -z "$MEM_DIR" ]] && MEM_DIR="${NAME}_mem"
 }
 
 create_pipe () {
@@ -247,7 +256,9 @@ create_pipe () {
 mk_mem_dir_and_trap () {
     mkdir "$MEM_DIR" || exit 2
 
-    trap_base="rm -f '$PIPE'"
+    trap_base=:
+    [[ "$MODE" = NC ]] && trap_base="rm -f '$PIPE'"
+
     if [[ ${EUID} -eq 0 ]]; then
         # Create ramdisk on MEM_DIR if running as root.
         mount -t ramfs -o size="${MEM_SIZE_K}k" ramfs "$MEM_DIR"
@@ -258,20 +269,28 @@ mk_mem_dir_and_trap () {
     fi
 }
 
-setup_nc_server () {
-    set_vars
-    mk_mem_dir_and_trap
-    create_pipe
+base-setup () {
+    # No setup if processing a request for socat.
+    [[ "$PROC_REQ" ]] && return
+
+    # Set arg 1 make mem_dir even for
+    use_mem_dir="$1"
+    if [[ "$MODE" = NC ]]; then
+        set_vars
+        mk_mem_dir_and_trap
+        create_pipe
+    elif [[ "$use_mem_dir" ]]; then
+        mk_mem_dir_and_trap
+    fi
 }
 
 run_nc_server () {
-    # Consider socat instead of nc to get rid of blocking (though it's some of the fun).
     while :; do
         # Netcat command is a variable to be able to find it with pgrep.
         # -v: Then process_request can read IP address from the redirected stderr.
         # The following order of commands avoids "broken pipe" error by cat contrary
         # to the example in the nc man page.
-        ${NC_CMD_BASE} ${PORT} <"$PIPE" 2>"$NC_ERR" | process_request_and_end >"$PIPE"
+        ${NC_CMD_BASE} ${PORT} <"$PIPE" 2>"$NC_ERR" | process_request_and_kill_nc >"$PIPE"
     done
 }
 
@@ -279,4 +298,20 @@ run_socat_server () {
     # Not crlf option; we handle CR outself to be compatible with nc.
     # Not -d to avoid "Connection reset by peer" all the time.
     socat -T"$TIMEOUT" TCP-LISTEN:${PORT},reuseaddr,fork SYSTEM:"${SCRIPT} ${PROC_REQ_ARG}"
+}
+
+gogogo () {
+    # If the process request argument was given to the script is called because
+    # of a connection to socat.
+    if [[ "$PROC_REQ" ]]; then
+        process_request
+        return
+    fi
+
+    # Run server.
+    case "$MODE" in
+    NC      ) run_nc_server ;;
+    SOCAT   ) run_socat_server ;;
+    *       ) echo "Invalid mode: '${MODE}'"; exit 3 ;;
+    esac
 }

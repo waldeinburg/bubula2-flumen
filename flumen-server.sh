@@ -26,6 +26,7 @@ MEM_DIR="$MAIN_MEM_DIR"
 MEM_IMG_DATA_DIR="${MEM_DIR}/img_data"
 IP_DIR="${MEM_DIR}/ip"
 COUNTER="${MEM_DIR}/counter"
+IMAGES_COUNT_FILE="${MEM_DIR}/img_count"
 
 # May be overriden by dev.
 ENTRANCE_URL="http://flumen.bubula2.com"
@@ -36,13 +37,14 @@ PORT="$MAIN_PORT"
 
 # Will be set up
 SECRET_PATH=
+IMAGES_COUNT=
 
 img_order () {
     # Alternative: sort
     shuf
 }
 
-process_request_nc () {
+process_request () {
     ip=$(wait_for_ip)
     request=$(wait_for_request) || return
     http_method=$(get_field "$request" 1)
@@ -193,35 +195,52 @@ EOF
     fi
 }
 
+calc_mem_size () {
+    # No setup if processing a request for socat.
+    [[ "$PROC_REQ" ]] && return
+
+    img_mem_size=$(du "$IMAGES_DIR" -k -d0 | cut -f1)
+    # Size increase for base64 is ceil(n / 3) * 4.
+    MEM_SIZE_K=$(( (img_mem_size / 3 + 1) * 4 + MEM_FS_EXTRA_K ))
+}
+
+setup () {
+    # Just load values if processing a request for socat.
+    if [[ "$PROC_REQ" ]]; then
+        SECRET_PATH=$(cat "$SECRET_PATH_FILE")
+        IMAGES_COUNT=$(cat "$IMAGES_COUNT_FILE")
+        return
+    fi
+
+    mkdir "$IP_DIR" || exit 2
+    echo -n 1 > "$COUNTER"
+
+    # "Preload" images by storing image base64 data on ramdisk.
+    # This way we won't read from the SD while running.
+    mkdir "$MEM_IMG_DATA_DIR" || exit 2
+    n=0
+    find "$IMAGES_DIR" -name "*.png" | img_order | while read f; do
+        n=$((n + 1))
+        base64 -w0 "$f" > "${MEM_IMG_DATA_DIR}/${n}"
+    done
+    IMAGES_COUNT=$(find "$MEM_IMG_DATA_DIR" -type f | wc -l)
+    echo -n "$IMAGES_COUNT" > "$IMAGES_COUNT_FILE"
+
+    # Generate secret path
+    token=$(head -c32 /dev/urandom | base64)
+    SECRET_PATH="/${token}"
+    echo -n "$SECRET_PATH" > "$SECRET_PATH_FILE"
+}
+
 
 # Setup
 
-img_mem_size=$(du "$IMAGES_DIR" -k -d0 | cut -f1)
-# Size increase for base64 is ceil(n / 3) * 4.
-MEM_SIZE_K=$(( (img_mem_size / 3 + 1) * 4 + MEM_FS_EXTRA_K ))
-
-setup_nc_server
-
-mkdir "$IP_DIR" || exit 2
-echo -n 1 > "$COUNTER"
-
-# "Preload" images by storing image base64 data on ramdisk.
-# This way we won't read from the SD while running.
-mkdir "$MEM_IMG_DATA_DIR" || exit 2
-n=0
-find "$IMAGES_DIR" -name "*.png" | img_order | while read f; do
-    n=$((n + 1))
-    base64 -w0 "$f" > "${MEM_IMG_DATA_DIR}/${n}"
-done
-IMAGES_COUNT=$(find "$MEM_IMG_DATA_DIR" -type f | wc -l)
-
-# Generate secret path
-token=$(head -c32 /dev/urandom | base64)
-SECRET_PATH="/${token}"
-echo -n "$SECRET_PATH" > "$SECRET_PATH_FILE"
+calc_mem_size
+base-setup 1
+setup
 
 if [[ "$DEV" ]]; then
-    ENTRANCE_URL="http://localhost:${MAIN_PORT}"
+    ENTRANCE_URL="http://localhost:${ENTRANCE_PORT}"
 fi
 
-run_nc_server
+gogogo

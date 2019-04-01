@@ -1,6 +1,7 @@
 .idea
-server_pipe
-mem
+*_pipe
+*_mem
+scan_img
 org_img
 img
 config-*.inc.sh

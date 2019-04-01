@@ -15,6 +15,9 @@ source config-flumen-entrance-server.inc.sh
 # - DEV_RECAPTCHA_SITE_KEY: For localhost.
 # - DEV_RECAPTCHA_SECRET_KEY: For localhost.
 
+# For common functions.
+NAME="flumen-entrance"
+
 # May be overridden by dev:
 MAIN_HOST="flumen.bubula2.com:${MAIN_PORT_EXTERN}"
 SITE_KEY="$RECAPTCHA_SITE_KEY"
@@ -38,10 +41,8 @@ is_really_not_a_robot () {
 }
 
 # Structured much like process_request_nc in flumen-server.sh
-process_request_socat () {
-    ip="$SOCAT_PEERADDR"
-    log "$ip"
-
+process_request () {
+    ip=$(wait_for_ip)
     request=$(wait_for_request) || return
     http_method=$(get_field "$request" 1)
 
@@ -113,16 +114,12 @@ if ! pgrep -f 'flumen-server\.sh' >/dev/null; then
     exit 1
 fi
 
+base-setup
+
 if [[ "$DEV" ]]; then
     MAIN_HOST="localhost:${MAIN_PORT}"
     SITE_KEY="$DEV_RECAPTCHA_SITE_KEY"
     SECRET_KEY="$DEV_RECAPTCHA_SECRET_KEY"
 fi
 
-# We want the bots to ruin a little as possible.
-# Use socat here but keep that nc hack in the main server.
-if [[ "$1" = "$PROC_REQ_ARG" ]]; then
-    process_request_socat
-else
-    run_socat_server
-fi
+gogogo
