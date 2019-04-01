@@ -36,6 +36,9 @@ CT="Content-Type"
 CT_TEXT="$CT: text/plain"
 CT_HTML="$CT: text/html"
 
+# Excpect cd to script directory.
+SCRIPT="./$(basename "$0")"
+PROC_REQ_ARG="procreq"
 NC_CMD_BASE="nc -vlp"
 
 norm () {
@@ -275,5 +278,5 @@ run_nc_server () {
 run_socat_server () {
     # Not crlf option; we handle CR outself to be compatible with nc.
     # Not -d to avoid "Connection reset by peer" all the time.
-    socat -T"$TIMEOUT" TCP-LISTEN:${PORT},reuseaddr,fork SYSTEM:"$PROCESS_REQUEST"
+    socat -T"$TIMEOUT" TCP-LISTEN:${PORT},reuseaddr,fork SYSTEM:"${SCRIPT} ${PROC_REQ_ARG}"
 }
