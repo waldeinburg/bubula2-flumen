@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+SERVER_SRC="server"
+SYSTEMD_SRC="systemd"
+TOOLS_SRC="tools"
+
 SERVER_DIR="/var/flumen"
 TOOLS_DIR="/root"
 
@@ -22,15 +26,20 @@ ssh_run () {
 
 [[ "$INSTALL" ]] && ssh_run "mkdir -p /var/flumen/img"
 
-./copy-to-rpi.sh config-flumen-server.inc.sh "${SERVER_DIR}/"
-./copy-to-rpi.sh flumen-server.sh "${SERVER_DIR}/"
-./copy-to-rpi.sh flumen.service /etc/systemd/system/
-./copy-to-rpi.sh shutdown-after-flumen.timer /etc/systemd/system/
-./copy-to-rpi.sh shutdown.service /etc/systemd/system/
-./copy-to-rpi.sh flumen-log.sh "${TOOLS_DIR}/"
+./copy-to-rpi.sh "${SERVER_SRC}/config-flumen-common.inc.sh" "${SERVER_DIR}/"
+./copy-to-rpi.sh "${SERVER_SRC}/config-flumen-server.inc.sh" "${SERVER_DIR}/"
+./copy-to-rpi.sh "${SERVER_SRC}/config-flumen-entrance-server.inc.sh" "${SERVER_DIR}/"
+./copy-to-rpi.sh "${SERVER_SRC}/flumen-common.inc.sh" "${SERVER_DIR}/"
+./copy-to-rpi.sh "${SERVER_SRC}/flumen-server.sh" "${SERVER_DIR}/"
+./copy-to-rpi.sh "${SERVER_SRC}/flumen-entrance-server.sh" "${SERVER_DIR}/"
+./copy-to-rpi.sh "${SYSTEMD_SRC}/flumen.service" /etc/systemd/system/
+./copy-to-rpi.sh "${SYSTEMD_SRC}/shutdown-after-flumen.timer" /etc/systemd/system/
+./copy-to-rpi.sh "${SYSTEMD_SRC}/shutdown.service" /etc/systemd/system/
+./copy-to-rpi.sh "${TOOLS_SRC}/flumen-log.sh" "${TOOLS_DIR}/"
 
 if [[ "$INSTALL" ]]; then
     ssh_run "chmod 754 ${SERVER_DIR}/flumen-server.sh"
+    ssh_run "chmod 754 ${SERVER_DIR}/flumen-entrance-server.sh"
     ssh_run "chmod 644 /etc/systemd/system/flumen.service"
     ssh_run "chmod 644 /etc/systemd/system/shutdown.service"
     ssh_run "chmod 644 /etc/systemd/system/shutdown-after-flumen.timer"
