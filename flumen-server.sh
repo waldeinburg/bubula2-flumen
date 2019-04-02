@@ -33,6 +33,7 @@ ENTRANCE_URL="http://flumen.bubula2.com"
 
 # Setup for common functions:
 NAME="flumen"
+MODE="$MAIN_MODE"
 PORT="$MAIN_PORT"
 
 # Will be set up

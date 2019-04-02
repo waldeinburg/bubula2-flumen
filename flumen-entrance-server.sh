@@ -50,6 +50,10 @@ process_request () {
         http_path=$(get_field "$request" 2)
         handle_robots_and_favicon "$http_path" && return
 
+        main_notice="<p><em>Remember:</em> The main site can only serve one page view at a time.\
+                     After entrance, refresh the site if it seems down.</p>"
+        [[ "$MAIN_MODE" = SOCAT ]] && main_notice=
+
         html_response "$HEADER_OK" <<EOF
 <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 <h1>Welcome to Bubula² Flumen</h1>
@@ -57,7 +61,7 @@ process_request () {
 <form action="/" method="POST">
 <div class="g-recaptcha" data-sitekey="${SITE_KEY}"></div>
 <input type="submit" value="Submit">
-<p>Remember: The main site is unstable on purpose. After entrance, refresh the site if it seems down.</p>
+${main_notice}
 </form>
 EOF
         log_result "PAGE"
