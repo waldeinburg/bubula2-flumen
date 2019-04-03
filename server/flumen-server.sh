@@ -18,6 +18,7 @@ source config-flumen-server.inc.sh
 # Limits for preventing users from hitting reload violently to get the next image:
 # - REQ_LIMIT: Max reloads that are rejected within one image.
 # - MAX_WARNS: Max warnings before the user is banned.
+# - RESET_PATH: Secret path that resets the counter.
 
 # Values unlikely to change:
 IMAGES_DIR="img"
@@ -45,6 +46,10 @@ img_order () {
     shuf
 }
 
+reset_counter () {
+    echo -n 1 > "$COUNTER"
+}
+
 process_request () {
     ip=$(wait_for_ip)
     request=$(wait_for_request) || return
@@ -61,6 +66,15 @@ EOF
     http_path=$(get_field "$request" 2)
 
     handle_robots_and_favicon "$http_path" && return
+
+    if [[ "$http_path" = "$RESET_PATH" ]]; then
+        reset_counter
+        text_response "$HEADER_OK" <<EOF
+hello, world
+EOF
+        log_result "RESET"
+        return
+    fi
 
     if [[ "$http_path" != "$SECRET_PATH" ]]; then
         html_response "$HEADER_NOT_FOUND" <<EOF
@@ -214,7 +228,7 @@ setup () {
     fi
 
     mkdir "$IP_DIR" || exit 2
-    echo -n 1 > "$COUNTER"
+    reset_counter
 
     # "Preload" images by storing image base64 data on ramdisk.
     # This way we won't read from the SD while running.
