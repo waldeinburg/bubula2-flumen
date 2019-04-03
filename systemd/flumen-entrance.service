@@ -6,7 +6,7 @@ After=flumen.service
 [Service]
 Type=simple
 ExecStart=/var/flumen/flumen-entrance-server.sh
-ExecStop=/usr/bin/pkill flumen-entrance-server.sh
+ExecStop=/usr/bin/pkill -f flumen-entrance-server.sh
 
 [Install]
 WantedBy=multi-user.target
