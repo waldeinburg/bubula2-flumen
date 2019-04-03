@@ -297,7 +297,9 @@ run_nc_server () {
 run_socat_server () {
     # Not crlf option; we handle CR outself to be compatible with nc.
     # Not -d to avoid "Connection reset by peer" all the time.
-    socat -T"$TIMEOUT" TCP-LISTEN:${PORT},reuseaddr,fork SYSTEM:"${SCRIPT} ${PROC_REQ_ARG}"
+    # The timeout needs to be much higher because the entrance server makes a service call to reCAPTCHA.
+    # The other timeout still applies to reading, though.
+    socat -T"$SOCAT_TIMEOUT" TCP-LISTEN:${PORT},reuseaddr,fork SYSTEM:"${SCRIPT} ${PROC_REQ_ARG}"
 }
 
 gogogo () {
