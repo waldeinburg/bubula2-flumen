@@ -35,7 +35,8 @@ See [the Bubula² Flumen page](http://bubula2.com/en/flumen) for details.
     is shut down one hour after startup, i.e., before the timer cuts the
     power.
 - tools:
-  - flumen-log.sh: Tool for reading the log.
+  - entrance-log.sh: Tool for reading the entrance server log.
+  - flumen-log.sh: Tool for reading the main server log.
 - copy-to-rpi.sh: Tool for copying single files to the host lacking scp
   or rsync etc.
 - README.md: huh?
