@@ -10,8 +10,26 @@ cd $(dirname "$0") || exit 1
 
 source config-dev.inc.sh
 
-ssh_run () {
-    echo "$1" | ssh "$SSH_USER"@"$SSH_HOST" bash
+MOUNTED=
+if [[ -d "${SD_MEDIA_PATH}${SERVER_IMG_DIR}" ]]; then
+    MOUNTED=1
+    SERVER_IMG_DIR="${SD_MEDIA_PATH}${SERVER_IMG_DIR}"
+fi
+
+run-cmd () {
+    if [[ "$MOUNTED" ]]; then
+        $1
+    else
+        echo "$1" | ssh "$SSH_USER"@"$SSH_HOST" bash
+    fi
+}
+
+copy-file () {
+    if [[ "$MOUNTED" ]]; then
+        cp "$@"
+    else
+        ./copy-to-rpi.sh "$@"
+    fi
 }
 
 img-web-path () {
@@ -24,13 +42,12 @@ create-resized-img () {
     convert "$SRC" -resize "${SIZE}x${SIZE}" "$DEST"
 }
 
-
 echo "Deleting all removed images from generated image directory ..."
 find "$IMG_DIR" -name "*.png" | while read f; do
     name=$(basename "$f" "-web.png")
     if [[ ! -f "${ORG_IMG_DIR}/${name}.png" ]]; then
         echo "Deleting ${name} from generated image directory ..."
-        rm ${f}
+        rm "$f"
     fi
 done
 
@@ -47,13 +64,13 @@ done
 
 echo "Copying all non-existing images to server ..."
 # Don't run ssh-session for each file to check if it exists.
-existing=$(ssh_run "find ${SERVER_IMG_DIR} -name '*.png'")
+existing=$(run-cmd "find ${SERVER_IMG_DIR} -name '*.png'")
 
 find "$IMG_DIR" -name "*.png" | while read f; do
     name=$(basename "$f")
     name_re=$(echo "$name" | sed -r 's/\./\\./g')
     if ! echo $existing | grep -q "${SERVER_IMG_DIR}/${name_re}"; then
-        ./copy-to-rpi.sh "$f" "${SERVER_IMG_DIR}/"
+        copy-file "$f" "${SERVER_IMG_DIR}/"
     fi
 done
 
@@ -64,7 +81,7 @@ if [[ "$existing" ]]; then
         name=$(basename "$f")
         if [[ ! -f "${IMG_DIR}/${name}" ]]; then
             echo "Deleting ${name} from server ..."
-            ssh_run "rm ${f}"
+            run-cmd "rm ${f}"
         fi
     done
 fi
