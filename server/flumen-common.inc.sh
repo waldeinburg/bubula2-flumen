@@ -19,6 +19,8 @@ PORT=
 MEM_SIZE_K=
 # Unique name (prefix for pipe). Only necessary if using nc.
 NAME=
+# Optional: Extra content in HTML head.
+HEAD=
 
 # Set by setup.
 PIPE=
@@ -42,6 +44,10 @@ SCRIPT="./$(basename "$0")"
 PROC_REQ_ARG="procreq"
 NC_CMD_BASE="nc -vlp"
 
+# Will be set by setup
+HTML_HEADER=
+HTML_FOOTER=
+
 PROC_REQ=
 [[ "$1" = "$PROC_REQ_ARG" ]] && PROC_REQ=1
 
@@ -51,7 +57,8 @@ norm () {
     tr '\n' ' ' | sed -r 's/ +/ /g; s/ $//'
 }
 
-HTML_HEADER=$(cat <<EOF | norm
+html_header () {
+    cat <<EOF | norm
 <!DOCTYPE html>
 <html>
 <head>
@@ -65,16 +72,19 @@ HTML_HEADER=$(cat <<EOF | norm
         margin: 10px;
       }
     </style>
+    ${HEAD}
 </head>
 <body>
 EOF
-)
-HTML_FOOTER=$(cat <<EOF | norm
+}
+
+html_footer () {
+    cat <<EOF | norm
 <p><a href="http://bubula2.com/en/flumen/">About Bubula² Flumen.</a></p>
 </body>
 </html>
 EOF
-)
+}
 
 # Log each request in one line.
 log () {
@@ -270,7 +280,11 @@ mk_mem_dir_and_trap () {
 }
 
 base-setup () {
-    # No setup if processing a request for socat.
+    # With nc this will make the header/footer generated only once.
+    HTML_HEADER=$(html_header)
+    HTML_FOOTER=$(html_footer)
+
+    # No further setup if processing a request for socat.
     [[ "$PROC_REQ" ]] && return
 
     # Set arg 1 make mem_dir even for

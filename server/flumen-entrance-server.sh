@@ -17,6 +17,10 @@ source config-flumen-entrance-server.inc.sh
 
 # For common functions.
 NAME="flumen-entrance"
+HEAD=$(cat <<EOF
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+EOF
+)
 
 # May be overridden by dev:
 MAIN_HOST="flumen.bubula2.com:${MAIN_PORT_EXTERN}"
@@ -55,7 +59,6 @@ process_request () {
         [[ "$MAIN_MODE" = SOCAT ]] && main_notice=
 
         html_response "$HEADER_OK" <<EOF
-<script src="https://www.google.com/recaptcha/api.js" async defer></script>
 <h1>Welcome to Bubula² Flumen</h1>
 <p>Access is free for carbon based life forms. Please verify that you are so.</p>
 <form action="/" method="POST">
