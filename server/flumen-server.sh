@@ -18,7 +18,7 @@ source config-flumen-server.inc.sh
 # Limits for preventing users from hitting reload violently to get the next image:
 # - REQ_LIMIT: Max reloads that are rejected within one image.
 # - MAX_WARNS: Max warnings before the user is banned.
-# - RESET_PATH: Secret path that resets the counter.
+# - RESET_PATH: Secret path that resets the counter. This is a very long random string.
 
 # Values unlikely to change:
 IMAGES_DIR="img"
@@ -67,6 +67,8 @@ EOF
 
     handle_robots_and_favicon "$http_path" && return
 
+    # If you are reading this code and consider brute forcing the path: Don't.
+    # It's a very long random string and the server is slow.
     if [[ "$http_path" = "$RESET_PATH" ]]; then
         reset_counter
         text_response "$HEADER_OK" <<EOF
