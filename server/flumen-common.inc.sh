@@ -260,10 +260,12 @@ create_pipe () {
     # Service must register trap to remove.
     rm -f "$PIPE"
     umask 077
-    mkfifo "$PIPE"
+    mkfifo "$PIPE" || exit 2
 }
 
 mk_mem_dir_and_trap () {
+    # Make sure it works even after a dirty shutdown or other error.
+    rm -rf "$MEM_DIR"
     mkdir "$MEM_DIR" || exit 2
 
     trap_base=:
