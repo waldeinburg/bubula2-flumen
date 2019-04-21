@@ -3,7 +3,7 @@
 
 SIZE=800
 ORG_IMG_DIR="org_img"
-IMG_DIR="img"
+IMG_DIR="server/img"
 SERVER_IMG_DIR="/var/flumen/img"
 
 cd $(dirname "$0") || exit 1
@@ -16,9 +16,10 @@ if [[ -d "${SD_MEDIA_PATH}${SERVER_IMG_DIR}" ]]; then
     SERVER_IMG_DIR="${SD_MEDIA_PATH}${SERVER_IMG_DIR}"
 fi
 
+
 run-cmd () {
     if [[ "$MOUNTED" ]]; then
-        $1
+        eval "sudo $1"
     else
         echo "$1" | ssh "$SSH_USER"@"$SSH_HOST" bash
     fi
@@ -26,7 +27,7 @@ run-cmd () {
 
 copy-file () {
     if [[ "$MOUNTED" ]]; then
-        cp "$@"
+        sudo cp "$@"
     else
         ./copy-to-rpi.sh "$@"
     fi
@@ -41,6 +42,12 @@ create-resized-img () {
     DEST=$(img-web-path "$SRC")
     convert "$SRC" -resize "${SIZE}x${SIZE}" "$DEST"
 }
+
+
+if [[ ! -d "$ORG_IMG_DIR" || ! -d "$IMG_DIR" ]]; then
+    echo "Directories ${ORG_IMG_DIR} and ${IMG_DIR} must exist!" >&2
+    exit 2
+fi
 
 echo "Deleting all removed images from generated image directory ..."
 find "$IMG_DIR" -name "*.png" | while read f; do
@@ -65,6 +72,7 @@ done
 echo "Copying all non-existing images to server ..."
 # Don't run ssh-session for each file to check if it exists.
 existing=$(run-cmd "find ${SERVER_IMG_DIR} -name '*.png'")
+
 
 find "$IMG_DIR" -name "*.png" | while read f; do
     name=$(basename "$f")
