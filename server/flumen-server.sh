@@ -53,6 +53,16 @@ reset_counter () {
 process_request () {
     ip=$(wait_for_ip)
     request=$(wait_for_request) || return
+
+    # Chrome on Android fetches through a proxy, even a different one every request.
+    headers=$(read_headers) || return
+    x_forwarded_for=$(get_header "$headers" "X-Forwarded-For")
+    if [[ "$x_forwarded_for" ]]; then
+        # Override ip.
+        ip="$x_forwarded_for"
+        log "proxy ${x_forwarded_for}"
+    fi
+
     http_method=$(get_field "$request" 1)
 
     if [[ "$http_method" != "GET" ]]; then
