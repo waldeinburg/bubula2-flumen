@@ -44,7 +44,7 @@ is_really_not_a_robot () {
     echo "$response" | grep -q '"success": *true' || return 1
 }
 
-# Structured much like process_request_nc in flumen-server.sh
+# Structured much like process_request in flumen-server.sh
 process_request () {
     ip=$(wait_for_ip)
     request=$(wait_for_request) || return
