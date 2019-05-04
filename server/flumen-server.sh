@@ -193,7 +193,7 @@ EOF
 staring contemplatively in front of every painting in a museum to ensure
 that everyone else won't think that you are a complete moron.<br/>
 1 bin = 8.5 seconds</p>
-<p>(Anders Lund Madsen, "Madsens ÆØÅ", my translation.)
+<p>(Anders Lund Madsen, "Madsens ÆØÅ", my translation.)</p>
 </blockquote>
 <p>
 If you see this message unexpectedly there's someone else on your network
@@ -208,7 +208,7 @@ EOF
     IMG_DATA=$(cat "${MEM_IMG_DATA_DIR}/${n}")
 
     html_response "$HEADER_OK" <<EOF
-<p><img alt="image" src="data:image/png;base64,${IMG_DATA}"/>
+<p><img alt="image" src="data:image/png;base64,${IMG_DATA}"/></p>
 <p>${n} of ${IMAGES_COUNT}</p>
 <p>${wait_msg}</p>
 <p><a href="http://bubula2.com">Copyright © 2012-$(date +%Y) Daniel Lundsgaard Skovenborg (Waldeinburg).</a></p>
