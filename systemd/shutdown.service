@@ -3,9 +3,12 @@
 # how to make the service run after timesyncd had finished synchronizing the
 # clock. That meant that shutdown was always set to one hour after the the
 # previous shutdown and did not run.
+# Also save Flumen logs. I will not waste more time trying to get journald
+# persistent log storage to work!
 [Unit]
 Description=Shutdown
 
 [Service]
 Type=oneshot
+ExecStartPre=/usr/local/bin/save-flumen-logs.sh
 ExecStart=/sbin/shutdown now

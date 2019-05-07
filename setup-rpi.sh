@@ -5,7 +5,7 @@ SYSTEMD_SRC="systemd"
 TOOLS_SRC="tools"
 
 SERVER_DIR="/var/flumen"
-TOOLS_DIR="/root"
+TOOLS_DIR="/usr/local/bin"
 
 INSTALL=
 
@@ -38,6 +38,7 @@ ssh_run () {
 ./copy-to-rpi.sh "${SYSTEMD_SRC}/shutdown.service" /etc/systemd/system/
 ./copy-to-rpi.sh "${TOOLS_SRC}/flumen-log.sh" "${TOOLS_DIR}/"
 ./copy-to-rpi.sh "${TOOLS_SRC}/entrance-log.sh" "${TOOLS_DIR}/"
+./copy-to-rpi.sh "${TOOLS_SRC}/save-flumen-logs.sh" "${TOOLS_DIR}/"
 
 if [[ "$INSTALL" ]]; then
     ssh_run "chmod 754 ${SERVER_DIR}/flumen-server.sh"
@@ -48,6 +49,7 @@ if [[ "$INSTALL" ]]; then
     ssh_run "chmod 644 /etc/systemd/system/shutdown-after-flumen.timer"
     ssh_run "chmod 755 ${TOOLS_DIR}/flumen-log.sh"
     ssh_run "chmod 755 ${TOOLS_DIR}/entrance-log.sh"
+    ssh_run "chmod 755 ${TOOLS_DIR}/save-flumen-logs.sh"
     ssh_run "systemctl enable flumen.service"
     ssh_run "systemctl enable flumen-entrance.service"
     ssh_run "systemctl enable shutdown-after-flumen.timer"
