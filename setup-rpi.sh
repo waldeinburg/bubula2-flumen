@@ -7,11 +7,32 @@ TOOLS_SRC="tools"
 SERVER_DIR="/var/flumen"
 TOOLS_DIR="/usr/local/bin"
 
+SERVER_FILES=(
+    config-flumen-common.inc.sh
+    config-flumen-entrance-server.inc.sh
+    config-flumen-server.inc.sh
+    flumen-common.inc.sh
+    flumen-entrance-server.sh
+    flumen-server.sh
+)
+SYSTEMD_FILES=(
+    flumen.service
+    flumen-entrance.service
+    shutdown-after-flumen.timer
+    shutdown.service
+)
+TOOLS_FILES=(
+    entrance-log.sh
+    flumen-log.sh
+    save-flumen-logs.sh
+)
+
 INSTALL=
 
 [[ "$1" = "INSTALL" ]] && INSTALL=1
 
-cd $(dirname "$0") || exit 1
+ROOT_DIR=$(dirname "$0")
+cd "$ROOT_DIR" || exit 1
 
 source config-dev.inc.sh
 
@@ -26,36 +47,28 @@ ssh_run () {
 
 [[ "$INSTALL" ]] && ssh_run "mkdir -p /var/flumen/img"
 
-./copy-to-rpi.sh "${SERVER_SRC}/config-flumen-common.inc.sh" "${SERVER_DIR}/"
-./copy-to-rpi.sh "${SERVER_SRC}/config-flumen-server.inc.sh" "${SERVER_DIR}/"
-./copy-to-rpi.sh "${SERVER_SRC}/config-flumen-entrance-server.inc.sh" "${SERVER_DIR}/"
-./copy-to-rpi.sh "${SERVER_SRC}/flumen-common.inc.sh" "${SERVER_DIR}/"
-./copy-to-rpi.sh "${SERVER_SRC}/flumen-server.sh" "${SERVER_DIR}/"
-./copy-to-rpi.sh "${SERVER_SRC}/flumen-entrance-server.sh" "${SERVER_DIR}/"
-./copy-to-rpi.sh "${SYSTEMD_SRC}/flumen.service" /etc/systemd/system/
-./copy-to-rpi.sh "${SYSTEMD_SRC}/flumen-entrance.service" /etc/systemd/system/
-./copy-to-rpi.sh "${SYSTEMD_SRC}/shutdown-after-flumen.timer" /etc/systemd/system/
-./copy-to-rpi.sh "${SYSTEMD_SRC}/shutdown.service" /etc/systemd/system/
-./copy-to-rpi.sh "${TOOLS_SRC}/flumen-log.sh" "${TOOLS_DIR}/"
-./copy-to-rpi.sh "${TOOLS_SRC}/entrance-log.sh" "${TOOLS_DIR}/"
-./copy-to-rpi.sh "${TOOLS_SRC}/save-flumen-logs.sh" "${TOOLS_DIR}/"
+echo "Copying server files ..."
+cd "${SERVER_SRC}" || exit 1
+../copy-to-rpi.sh "${SERVER_FILES[@]}" "${SERVER_DIR}" || exit 2
+cd - > /dev/null
+
+echo "Copying systemd files ..."
+cd "${SYSTEMD_SRC}" || exit 1
+../copy-to-rpi.sh "${SYSTEMD_FILES[@]}" /etc/systemd/system || exit 2
+cd - > /dev/null
+
+echo "Copying tools ..."
+cd "${TOOLS_SRC}" || exit 1
+../copy-to-rpi.sh "${TOOLS_FILES[@]}" "${TOOLS_DIR}" || exit 2
+cd - > /dev/null
 
 if [[ "$INSTALL" ]]; then
-    ssh_run "chmod 754 ${SERVER_DIR}/flumen-server.sh"
-    ssh_run "chmod 754 ${SERVER_DIR}/flumen-entrance-server.sh"
-    ssh_run "chmod 644 /etc/systemd/system/flumen.service"
-    ssh_run "chmod 644 /etc/systemd/system/flumen-entrance.service"
-    ssh_run "chmod 644 /etc/systemd/system/shutdown.service"
-    ssh_run "chmod 644 /etc/systemd/system/shutdown-after-flumen.timer"
-    ssh_run "chmod 755 ${TOOLS_DIR}/flumen-log.sh"
-    ssh_run "chmod 755 ${TOOLS_DIR}/entrance-log.sh"
-    ssh_run "chmod 755 ${TOOLS_DIR}/save-flumen-logs.sh"
-    ssh_run "systemctl enable flumen.service"
-    ssh_run "systemctl enable flumen-entrance.service"
-    ssh_run "systemctl enable shutdown-after-flumen.timer"
+    ssh_run "systemctl enable flumen.service" || exit 3
+    ssh_run "systemctl enable flumen-entrance.service" || exit 3
+    ssh_run "systemctl enable shutdown-after-flumen.timer" || exit 3
 else
-    ssh_run "systemctl daemon-reload"
-    ssh_run "systemctl restart flumen"
+    ssh_run "systemctl daemon-reload" || exit 3
+    ssh_run "systemctl restart flumen" || exit 3
 fi
 
 echo "Done!"
