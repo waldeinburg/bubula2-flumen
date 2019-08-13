@@ -1,22 +1,16 @@
 #!/usr/bin/env bash
 # Copy via SSH when scp is missing.
+
 cd $(dirname "$0") || exit 1
-
 source config-dev.inc.sh
+cd - > /dev/null
 
-SRC="$1"
-DEST="$2"
+DEST_DIR=${@:$#}
 
-if [[ ! -f "$SRC" ]]; then
-    echo "$SRC is not a regular file" >&2
+if [[ $# -lt 2 ]]; then
+    echo "Usage: $0 SOURCE... DEST_DIR" >&2
     exit 1
 fi
 
-# Allow copy to folder.
-if [[ "$(echo -n "$DEST" | tail -c1)" = "/" ]]; then
-    DEST="${DEST}$(basename "$SRC")"
-fi
-
-echo "Copying ${SRC} to ${SSH_HOST}:${DEST} ..."
-echo "echo $(base64 -w0 "$SRC") | base64 -d > '$DEST'" | ssh "$SSH_USER"@"$SSH_HOST" bash
-# TODO: change permissions
+tar -c "${@:1:$#-1}" | ssh "$SSH_USER"@"$SSH_HOST" \
+  "[[ -d '${DEST_DIR}' ]] && tar --no-same-owner -x -C '${DEST_DIR}' || echo '${DEST_DIR} is not a directory!' >&2"
