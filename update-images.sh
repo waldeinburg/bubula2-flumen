@@ -26,6 +26,7 @@ run-cmd () {
 }
 
 copy-file () {
+    echo "Copying $1 ..."
     if [[ "$MOUNTED" ]]; then
         sudo cp "$@"
     else
@@ -78,7 +79,7 @@ find "$IMG_DIR" -name "*.png" | while read f; do
     name=$(basename "$f")
     name_re=$(echo "$name" | sed -r 's/\./\\./g')
     if ! echo $existing | grep -q "${SERVER_IMG_DIR}/${name_re}"; then
-        copy-file "$f" "${SERVER_IMG_DIR}/"
+        copy-file "$f" "${SERVER_IMG_DIR}"
     fi
 done
 
